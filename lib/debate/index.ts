@@ -1,5 +1,6 @@
 export { createDebate, getExpectedTurn, appendTurn, restoreDebate, markJudged } from "@/lib/debate/engine";
-export { sameSizeBand } from "@/lib/debate/models";
+export { sameSizeBand, validateRoster } from "@/lib/debate/models";
+export type { RosterResult } from "@/lib/debate/models";
 export type {
   DebateState,
   DebateStatus,

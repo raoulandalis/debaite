@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { checkHealth, generate } from "@/lib/ollama/client";
-import { healthFromTags, matchModel } from "@/lib/ollama/health";
+import { checkHealth, generate, listInstalledModels } from "@/lib/ollama/client";
+import { healthFromTags, matchModel, parseInstalledModels } from "@/lib/ollama/health";
 
 const envKeys = ["OLLAMA_BASE_URL", "OLLAMA_MODEL", "OLLAMA_TIMEOUT_MS"] as const;
 const previousEnv = new Map<string, string | undefined>();
@@ -205,6 +205,50 @@ test("checkHealth reads tags and reports the configured model", async () => {
   });
   expect(fetchCall()[0]).toBe("http://127.0.0.1:11434/api/tags");
   expect(await checkHealth()).not.toHaveProperty("baseUrl");
+});
+
+test("parseInstalledModels keeps sizes and skips nameless tags", () => {
+  expect(
+    parseInstalledModels({
+      models: [
+        { name: "a:latest", details: { parameter_size: "3.2B" } },
+        { name: "b:latest", details: { parameter_size: " 7B " } },
+        { name: "c:latest", details: { parameter_size: "8.0B" } },
+        { name: "d:latest", details: { parameter_size: "7M" } },
+        { name: "e:latest" },
+        { details: { parameter_size: "7B" } },
+      ],
+    }),
+  ).toEqual([
+    { name: "a:latest", parameterBillions: 3.2 },
+    { name: "b:latest", parameterBillions: 7 },
+    { name: "c:latest", parameterBillions: 8 },
+    { name: "d:latest", parameterBillions: null },
+    { name: "e:latest", parameterBillions: null },
+  ]);
+  expect(parseInstalledModels({ models: "nope" })).toBeNull();
+});
+
+test("listInstalledModels returns the catalog from tags", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    Response.json({
+      models: [{ name: "gemma2:9b", details: { parameter_size: "9B" } }],
+    }),
+  );
+  await expect(listInstalledModels()).resolves.toEqual({
+    ok: true,
+    models: [{ name: "gemma2:9b", parameterBillions: 9 }],
+  });
+  expect(fetchCall()[0]).toBe("http://127.0.0.1:11434/api/tags");
+});
+
+test("listInstalledModels reports an unreachable Ollama", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("fetch failed"));
+  await expect(listInstalledModels()).resolves.toEqual({
+    ok: false,
+    code: "OLLAMA_UNAVAILABLE",
+    message: "Ollama is not reachable.",
+  });
 });
 
 test("checkHealth stays down when tags cannot be fetched", async () => {
