@@ -50,7 +50,7 @@ Turn a finished transcript into a judged result the player can read, then let th
 - R-9. Show `verdict` in a section headed `Verdict`. Above the verdict text, show `Judge model: {judgeModel}`. Show `strongest.a` and `strongest.b` under `Strongest argument`, each with the character name. Show `weakness.a` and `weakness.b` under `Biggest weakness`, each with the character name.
 - R-10. Show `judgment.disclaimer` as visible text in the results main region, not only as a `title` attribute or an icon with no text.
 - R-11. `Play again` creates a new debate with the same topic, character ids, and model names, sets `judgment` to null, sets phase to `debate`, sets playback to `running`, and requests opening A. The previous speeches are gone.
-- R-12. `New debate` sets phase to `setup`, sets `debate` and `judgment` to null, and keeps `topicDraft`, the character ids, and the three model choices so the form is still filled in.
+- R-12. `New debate` sets phase to `setup`, sets `debate` and `judgment` to null, and keeps `topicDraft`, the character ids, and the two debater models so the form is still filled in. The judge remains `gemma2:9b`.
 - R-13. While judging, the debate screen stays mounted, the six speeches stay visible, and the status line is `The judge is scoring the debate.` Do not show an empty results page and do not show placeholder scores such as `0`, `--`, or `TBD`.
 - R-14. Results use the character accent and monogram for each side. The winner heading does not rely on color alone. A tie shows both names at the same visual level.
 - R-15. At 390px, the winner heading, both scores, and the criterion rows are readable without horizontal scrolling. At 1024px and above, the two characters' score columns sit side by side.

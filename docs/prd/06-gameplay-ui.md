@@ -2,11 +2,11 @@
 
 ## 1. Purpose
 
-Let a player pick a topic, two characters, a model for each character, and a different judge model, then watch the six speeches appear on a debate screen. Each speech uses that speaker's model. This PRD stops when the transcript is ready for the judge. It does not show scores.
+Let a player pick a topic, two characters, and two models from the fixed debater roster, then watch the six speeches appear on a debate screen. Each speech uses that speaker's model. The judge is `gemma2:9b` and is not a choice. This PRD stops when the transcript is ready for the judge. It does not show scores.
 
 ## 2. User stories
 
-- U-US-1. As a player, I can start a debate only when the topic, the two characters, and the three model choices are valid.
+- U-US-1. As a player, I can start a debate only when the topic, the two characters, and two installed debater models are valid, and `gemma2:9b` is installed.
 - U-US-2. As a player, I can see who is speaking, which round it is, and what the other side already said.
 - U-US-3. As a player, I can pause, cancel, or retry without the debate advancing twice or freezing on a spinner.
 - U-US-4. As a player using a phone or a keyboard, I can complete setup and follow the debate.
@@ -15,7 +15,7 @@ Let a player pick a topic, two characters, a model for each character, and a dif
 
 ### Included
 
-- Setup phase on `/`: topic, two slots, character cards, a model choice for each slot, a judge model, and start.
+- Setup phase on `/`: topic, two slots, character cards, a debater-model choice for each slot, the fixed judge tag, and start.
 - `POST /api/debate/turn`.
 - A debate screen for openings, rebuttals, and closings.
 - Automatic advance, pause, cancel, and retry.
@@ -34,13 +34,13 @@ Let a player pick a topic, two characters, a model for each character, and a dif
 - U-1. The setup phase keeps the DebAIte `h1` and the model-status panel from PRD 02.
 - U-2. The topic control is a labeled textarea, label text `Debate topic`. Helper text: `Yes/no and "Should" questions work well. The topic does not need one correct answer.`
 - U-3. Show two slots, `Debater A · For` and `Debater B · Against`. Each slot lists Rex, Athena, and Jester using `name`, `title`, and `summary` from the registry. Do not show `systemPrompt`.
-- U-3a. Each slot has a model control labeled `Model`, with accessible name `Model for Debater A` or `Model for Debater B`. Options come from the health `models` list and include only entries whose `parameterBillions` is a positive number. Each option's visible text is the tag name and the size, such as `llama3.2:latest (3.2B)`. A separate control labeled `Judge model` lists every installed model except the two selected speaker models, including a model whose size is null. Its helper text is `The judge must be a different model from both debaters.`
-- U-4. A character chosen in one slot is disabled in the other. The disabled control's accessible name includes `Already chosen`. The selected card shows the word `Selected` as text. A model chosen for one speaker is disabled for the other speaker, with the same accessible-name rule.
-- U-5. The Start control is a button labeled `Start debate`. It is disabled until `validateTopic` succeeds, the two character ids are non-null and different, the two speaker models are different and `sameSizeBand` is true, and the judge model is non-null and different from both speaker models. Near the button, helper text reads `Enter a topic of at least 8 characters, choose two different characters, choose two models of similar size, and choose a different judge model.` while the button is disabled, and is removed or replaced when it becomes enabled.
-- U-6. A failed health check leaves the model lists empty, so Start stays disabled. The warning from PRD 02 stays visible. Do not offer a way to type a model name that is not in the catalog.
+- U-3a. Each slot has a model control labeled `Model`, with accessible name `Model for Debater A` or `Model for Debater B`. The options are only `mistral:7b`, `qwen2.5:7b`, and `llama3.1:8b`, in that order. When the health catalog contains that tag and a positive `parameterBillions`, the visible text is the tag and the size, such as `mistral:7b (7.2B)`. A tag missing from the catalog stays in the list, is disabled, and its accessible name includes `Not installed`. Do not list any other installed model. A line labeled `Judge model` shows `gemma2:9b`. When that tag is in the catalog with a positive size, also show the size, such as `gemma2:9b (9.2B)`. When it is missing, the line also shows `Not installed`. There is no judge select.
+- U-4. A character chosen in one slot is disabled in the other. The disabled control's accessible name includes `Already chosen`. The selected card shows the word `Selected` as text. A model chosen for one speaker is disabled for the other speaker, with the same accessible-name rule. A model that is both taken and not installed includes both `Already chosen` and `Not installed` in the accessible name.
+- U-5. The Start control is a button labeled `Start debate`. It is disabled until `validateTopic` succeeds, the two character ids are non-null and different, the two speaker models are different installed members of `DEBATER_MODELS` whose sizes pass `sameSizeBand`, and `gemma2:9b` is in the catalog. Near the button, helper text reads `Enter a topic of at least 8 characters, choose two different characters, and choose two installed debater models.` while the button is disabled, and is removed or replaced when it becomes enabled.
+- U-6. A failed health check leaves every roster tag disabled, so Start stays disabled. The warning from PRD 02 stays visible. Do not offer a way to type a model name.
 - U-7. Starting calls `createDebate`, sets the phase to `debate`, sets playback to `running`, and requests opening A. It does not navigate to another URL.
 - U-8. Add `POST /api/debate/turn`. The body is `TurnRequest` from PRD 00. Validate it with Zod, then `restoreDebate`. If restore fails, return `400` or `409` using the engine's code. If the requested `round` and `speaker` are not `getExpectedTurn`, return `409 DEBATE_STATE_CONFLICT` and do not call Ollama.
-- U-9. The turn route loads the speaker with `getCharacter`, sets side to affirmative for `a` and negative for `b`, builds messages with `buildTurnMessages`, and calls `generate` with that speaker's model, temperature `0.8`, and `numPredict` 320 for opening and rebuttal or 240 for closing. Before `generate`, apply the model rules in PRD 00. A size-band failure is `400 INVALID_INPUT`. A model missing from the catalog is `502 OLLAMA_UNAVAILABLE`. Do not put the model name in the prompt.
+- U-9. The turn route loads the speaker with `getCharacter`, sets side to affirmative for `a` and negative for `b`, builds messages with `buildTurnMessages`, and calls `generate` with that speaker's model, temperature `0.8`, and `numPredict` 320 for opening and rebuttal or 240 for closing. Before `generate`, apply the model rules in PRD 00. A model outside the debater roster, a judge other than `gemma2:9b`, or a size-band failure is `400 INVALID_INPUT`. A roster model missing from the catalog is `502 OLLAMA_UNAVAILABLE`. Do not put the model name in the prompt. Also apply that allowlist in `POST /api/debate/judge` and point its tests at `mistral:7b`, `llama3.1:8b`, and `gemma2:9b`.
 - U-10. The route trims model text and rejects empty text or text longer than 4,000 characters with `INVALID_MODEL_OUTPUT`. Success returns `{ round, speaker, text }` using the requested round and speaker, and the trimmed text. The server does not store the turn.
 - U-11. The debate screen shows the three rounds as text: `Opening`, `Rebuttal`, and `Closing`. The active round also has the word `Current`. Completed rounds stay visible.
 - U-12. Every stored speech shows the character name, that speaker's model name, `For` or `Against`, the round name, and the speech text. Color may accent the card. The name, model, and side are still present if color is removed.
@@ -52,7 +52,7 @@ Let a player pick a topic, two characters, a model for each character, and a dif
 - U-18. `Cancel turn` aborts the current fetch, does not append, sets playback to `paused`, and leaves the same expected turn. `Resume` sets playback to `running` and requests the expected turn when no request is in flight.
 - U-19. Only one turn request may be in flight. A second start, retry, or resume while `pending` is set does nothing. When a response arrives, ignore it unless its `round` and `speaker` match the `pending` request and match `getExpectedTurn` at that moment. Then call `appendTurn`.
 - U-20. After the sixth speech, status is `awaiting_judge`, `pending` is cleared, and the screen shows `The debate is ready for the judge.` Do not call the judge route and do not display scores or a winner in this PRD. PRD 07 replaces only that end branch: while playback is `running`, the sixth success starts judging instead of stopping. Until PRD 07, stopping is the correct behavior.
-- U-21. Reloading `/` returns to setup with an empty topic, no selected characters, and no selected models. Do not write the session to `localStorage` or `sessionStorage`. The model choice is fixed once the debate starts. Playback does not offer a control to change it.
+- U-21. Reloading `/` returns to setup with an empty topic, no selected characters, and no selected debater models. The judge line still shows `gemma2:9b`. Do not write the session to `localStorage` or `sessionStorage`. The model choice is fixed once the debate starts. Playback does not offer a control to change it.
 - U-22. At 390px width, the topic field and both slots fit without horizontal scrolling. At 1280px, the debate uses the two columns from U-13 inside the 1120px shell from PRD 01.
 - U-23. Setup and playback can be completed with a keyboard: focus styles from PRD 01 remain, cards and buttons are real buttons, and the textarea has its label.
 - U-24. New speech appearance may fade in. Under `prefers-reduced-motion: reduce`, show the speech immediately with no fade.
@@ -62,6 +62,7 @@ Let a player pick a topic, two characters, a model for each character, and a dif
 Files:
 
 ```text
+lib/debate/roster.ts
 lib/debate/playback.ts
 lib/debate/turn-client.ts
 app/api/debate/turn/route.ts
@@ -101,8 +102,8 @@ Events for the reducer:
 
 | Event | Effect |
 | --- | --- |
-| `edit_setup` | Updates the draft topic, a character slot, or a model choice while `phase` is `setup`. Ignored during `debate`. |
-| `start` | `createDebate`. On success, phase `debate`, playback `running`, `pending` is `{ kind: "turn", round: "opening", speaker: "a" }`. On failure, stay on setup and set `error`. |
+| `edit_setup` | Updates the draft topic, a character slot, or a debater-model slot while `phase` is `setup`. It does not change `judgeModel`. Ignored during `debate`. |
+| `start` | `createDebate` with `judgeModel` set to `gemma2:9b`. On success, phase `debate`, playback `running`, `pending` is `{ kind: "turn", round: "opening", speaker: "a" }`. On failure, stay on setup and set `error`. |
 | `turn_succeeded` | If `pending` is `{ kind: "turn" }` for that speech and `appendTurn` succeeds, store the next state and clear `error`. If playback is `running` and another turn is expected, set `pending` to `{ kind: "turn", round, speaker }` for it. If the debate is `awaiting_judge`, clear `pending`. If `pending` does not match, ignore the payload. PRD 07 changes the `awaiting_judge` branch so a running playback sets `{ kind: "judge" }`. |
 | `turn_failed` | Clear `pending`, set `error`, set playback to `paused`. |
 | `pause` | Set playback to `paused`. Leave `pending` as it is. |
@@ -150,7 +151,9 @@ There is no automatic second try for a bad speech. The player uses `Retry turn`.
 | --- | --- |
 | Topic too short, one slot empty, or a model choice missing | Start disabled. No request. |
 | Player picks Rex in both slots | Second Rex control is disabled. |
-| Speaker models are 7B and 14B | Start disabled. `sameSizeBand` is false. |
+| Catalog includes `qwen2.5:14b` or `llama3.2:latest` | Those tags are not shown. A turn body that names one returns `400 INVALID_INPUT`. |
+| A roster tag is not installed | That option is disabled and its accessible name includes `Not installed`. |
+| `gemma2:9b` is not installed | The judge line shows `Not installed`. Start stays disabled. |
 | Player picks the same model for both speakers | Second control is disabled. |
 | Ollama down on the first turn | Error text from `OLLAMA_UNAVAILABLE`, transcript empty, `Retry turn` requests opening A. |
 | Timeout | `OLLAMA_TIMEOUT` message, same retry rule. |
@@ -185,9 +188,9 @@ Route test with `generate` mocked:
 
 Render tests:
 
-- Setup shows `Debate topic`, disables Start for `Too short`, and enables it for `Should AI replace human teachers?` once two different characters, two models in the same size band, and a different judge model are chosen.
-- Rex in slot A makes Rex disabled in slot B. A model selected for slot A is disabled for slot B.
-- A catalog containing a 7B model and a 14B model does not enable Start when those are the two speaker models.
+- Setup shows `Debate topic`, the three debater tags, and `Judge model` with `gemma2:9b`. It does not show `llama3.2:latest` even when the catalog contains it. Start stays disabled for `Too short`, and enables for `Should AI replace human teachers?` once Rex, Athena, `mistral:7b`, and `llama3.1:8b` are chosen and the catalog contains those two tags plus `qwen2.5:7b` and `gemma2:9b`.
+- Rex in slot A makes Rex disabled in slot B. `mistral:7b` selected for slot A is disabled for slot B.
+- A catalog that omits `mistral:7b` disables that option and does not enable Start when it is one of the two speaker choices. A catalog that omits `gemma2:9b` shows `Not installed` on the judge line and keeps Start disabled.
 - Debate screen fixture with one stored opening shows `Rex`, that speaker's model name, `For`, and `Opening`.
 - Pending opening B shows `Athena is making the opening argument.`
 - Error fixture shows `Retry turn` and does not show a score.
@@ -196,7 +199,7 @@ Manual check after the automated tests: run a real debate only if Ollama is up. 
 
 ## 9. Acceptance criteria
 
-- AC-U-1. A player can choose a valid topic, Rex, Athena, two models in the same size band, and a different judge model, and see six speeches in order when those models succeed.
+- AC-U-1. A player can choose a valid topic, Rex, Athena, and two installed debater models, see `gemma2:9b` as the judge, and see six speeches in order when those models succeed.
 - AC-U-2. The active speaker's name and the current round are visible as text on a 390px viewport and on a desktop viewport.
 - AC-U-3. Cancel or a failed turn leaves the next request on the same speech.
 - AC-U-4. Two overlapping successes cannot add two copies of the same speech. The reducer test for a mismatched response covers this.
@@ -206,7 +209,7 @@ Manual check after the automated tests: run a real debate only if Ollama is up. 
 
 ## 10. Implementation tasks
 
-1. Read the Next.js route-handler docs, then add `POST /api/debate/turn`.
+1. Add `lib/debate/roster.ts` with `DEBATER_MODELS` and `JUDGE_MODEL`. Read the Next.js route-handler docs, then add `POST /api/debate/turn` and apply the same allowlist to the judge route.
 2. Add the playback reducer and its tests.
 3. Build the setup form and character cards.
 4. Build the debate screen, status line, and pause, cancel, and retry controls.

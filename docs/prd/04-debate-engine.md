@@ -39,7 +39,7 @@ Decide, in plain TypeScript, whether a debate can start, whose speech is next, a
   Success status is `in_progress` and `turns` is empty.
 - D-3. Topic validation trims ends, then accepts 8 to 240 characters. Reject an empty result, a shorter string, a longer string, and any string that contains a NUL character. Internal spaces remain.
 - D-4. `debaterAId` and `debaterBId` must both exist in `getCharacter` and must differ. Compare ids with exact case. `rex` is valid. `Rex` is not.
-- D-4a. Trim each model name. Reject an empty result, a name longer than 200 characters, and any name that contains a NUL. `debaterAModel` and `debaterBModel` must differ as exact strings. `judgeModel` must differ from both. Store the trimmed names. This module does not check the size band or the installed catalog. PRDs 05 and 06 do that before calling Ollama.
+- D-4a. Trim each model name. Reject an empty result, a name longer than 200 characters, and any name that contains a NUL. `debaterAModel` and `debaterBModel` must differ as exact strings. `judgeModel` must differ from both. Store the trimmed names. This module does not check the size band, the installed catalog, or the PRD 00 roster. PRDs 05 and 06 do that before calling Ollama.
 - D-5. Slot A is affirmative and slot B is negative. The engine does not store a separate side field. Callers derive side from the slot.
 - D-6. `getExpectedTurn` returns the next speech from the table in PRD 00 while status is `in_progress`. It returns `null` when status is `awaiting_judge` or `complete`.
 - D-7. `appendTurn(state, turn)` succeeds only when `turn.round` and `turn.speaker` equal `getExpectedTurn(state)`, and `turn.text` trims to 1–4,000 characters. Stored text is the trimmed text. Text that is empty or too long is `INVALID_INPUT`. A well-formed speech at the wrong time is `DEBATE_STATE_CONFLICT`.
@@ -161,7 +161,7 @@ Required cases:
 - `restoreDebate` of five speeches is still `in_progress` and expects closing B.
 - `markJudged` succeeds only from `awaiting_judge`.
 
-Use a fixture topic `Should AI replace human teachers?`, ids `rex` and `athena`, speaker models `llama3.2:latest` and `qwen2.5:7b`, and judge model `gemma2:9b`. Those strings are fixtures. This PRD does not contact Ollama to prove they are installed.
+Use a fixture topic `Should AI replace human teachers?`, ids `rex` and `athena`, speaker models `mistral:7b` and `llama3.1:8b`, and judge model `gemma2:9b`. Those strings are the product roster from PRD 00. This module still accepts any other distinct names, and it does not contact Ollama.
 
 ## 9. Acceptance criteria
 

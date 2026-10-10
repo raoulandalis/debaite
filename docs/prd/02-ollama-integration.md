@@ -27,7 +27,7 @@ The first implementation of this PRD checked a single `OLLAMA_MODEL`. The contra
 
 - Character prompts, debate turns, judge scoring, and `/api/debate/*`.
 - Streaming.
-- The setup controls that assign a model to a character or to the judge. PRD 06 owns those controls. This PRD only lists the installed models.
+- The setup controls that assign a debater model. PRD 06 owns those controls and shows only the roster in PRD 00. This PRD still lists every installed model so setup can tell which roster tags are present.
 - Downloading or pulling a model from this app. The player pulls models in Ollama.
 - Hosted model APIs.
 - Exposing a browser route that accepts an arbitrary prompt. The health route is the only new HTTP route. `generate` is a server function, not a public "complete this prompt" API.
@@ -193,4 +193,4 @@ Mock `fetch`. Do not mock by starting a real server.
 
 ## 11. Open questions
 
-None. Debate model choice is the player's, in PRD 06. This gateway only lists installed models and sends the model name it is given.
+None. Setup offers only the PRD 00 roster. This gateway still lists every installed model and sends the model name it is given.

@@ -28,6 +28,7 @@ Confirmed for the product:
 
 - One loop: topic, two different characters, six speeches (opening, rebuttal, closing; affirmative speaks first), then a judgment.
 - Characters: Rex the Provocateur, Athena the Strategist, and Jester the Wildcard. Personalities come from prompts, not from separate models.
+- Debater models are `mistral:7b`, `qwen2.5:7b`, and `llama3.1:8b`. The player assigns two of those. The judge is always `gemma2:9b`. A tag that is not installed is unavailable. Setup does not list other Ollama models.
 - Slot A is affirmative. Slot B is negative. The same character cannot fill both slots.
 - Results must say the verdict is an AI-generated evaluation, not an objective ruling. Required sentence: "This verdict is an AI-generated evaluation, not an objective ruling."
 - No accounts, payments, database, saved history, shareable debate URLs, character editor, token streaming, or a claim that the judge is unbiased.

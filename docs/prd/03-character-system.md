@@ -21,7 +21,7 @@ Keep the three personalities in one registry and build the messages each debater
 
 ### Excluded
 
-- A character editor, extra characters, or a model name stored on the character record. The player chooses each speaker's model and the judge model at setup. Those names are session fields from PRD 00. This PRD does not mention them in a prompt.
+- A character editor, extra characters, or a model name stored on the character record. The player chooses each speaker's model from the PRD 00 roster at setup. The judge model is the fixed tag in that roster. Those names are session fields. This PRD does not mention them in a prompt.
 - The debate state machine (PRD 04). This PRD does not decide whose turn it is. It only formats the turn it is given.
 - The judge prompt (PRD 05).
 - Portrait images. The visual is a monogram and an accent token already defined in PRD 01.

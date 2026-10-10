@@ -66,4 +66,4 @@ PRD 06 needs the gateway, characters, and debate engine. It does not need the ju
 
 ## What this set deliberately excludes
 
-No database, accounts, payments, debate history, character editor, token streaming, hosted model APIs, or deployment that publishes a home Ollama server. Those are non-goals in PRD 00. Choosing among models installed in the one local Ollama is in scope.
+No database, accounts, payments, debate history, character editor, token streaming, hosted model APIs, or deployment that publishes a home Ollama server. Those are non-goals in PRD 00. The player chooses two of `mistral:7b`, `qwen2.5:7b`, and `llama3.1:8b`. The judge is always `gemma2:9b`.

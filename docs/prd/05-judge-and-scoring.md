@@ -25,7 +25,7 @@ After six speeches, a judge model rates argument quality, and the application tu
 
 - The debate screen and the results layout (PRDs 06 and 07).
 - Streaming.
-- A second judge, or a retry that switches to another model. Setup chooses one judge model.
+- A second judge, or a retry that switches to another model. The judge model is the fixed `gemma2:9b` tag from PRD 00.
 - Server-side storage of the verdict.
 - Any path that substitutes fallback scores, averages, or a coin flip.
 
@@ -54,7 +54,7 @@ After six speeches, a judge model rates argument quality, and the application tu
   ```
 
 - J-11. `POST /api/debate/judge` accepts `topic`, `debaterAId`, `debaterBId`, and `transcript`. It runs `restoreDebate`. If the result is not `ok` or the status is not `awaiting_judge`, return the matching error from PRD 00 (`400` or `409`) and do not call Ollama.
-- J-12. A ready transcript calls `generate` with the judge messages, `model` set to `judgeModel`, `json: true`, temperature `0.3`, and `numPredict: 900`. Do not omit `model` and do not fall back to `OLLAMA_MODEL`. Before that call, reject the roster with the model rules in PRD 00. A judge model equal to either speaker, or speaker models outside the size band, is `INVALID_INPUT` and does not call Ollama. A model name missing from the catalog is `OLLAMA_UNAVAILABLE`.
+- J-12. A ready transcript calls `generate` with the judge messages, `model` set to `judgeModel`, `json: true`, temperature `0.3`, and `numPredict: 900`. Do not omit `model` and do not fall back to `OLLAMA_MODEL`. Before that call, reject the roster with the model rules in PRD 00. A speaker model outside `DEBATER_MODELS`, a judge model other than `gemma2:9b`, a judge model equal to either speaker, or speaker models outside the size band is `INVALID_INPUT` and does not call Ollama. A roster name missing from the catalog is `OLLAMA_UNAVAILABLE`. PRD 06 adds this allowlist to the judge route and updates the route fixture from `llama3.2:latest` to a debater-roster pair.
 - J-13. If parsing fails, call `generate` one more time with the same messages. If the second output also fails, return `502` with `INVALID_MODEL_OUTPUT`. Do not return partial scores.
 - J-14. Gateway errors from the first call are returned immediately. Do not spend the parse retry on `OLLAMA_UNAVAILABLE`, `OLLAMA_TIMEOUT`, or `MODEL_ERROR`.
 - J-15. Success returns the `Judgment` object from PRD 00 and HTTP 200. The route does not call `markJudged`; the browser does that after it accepts the body.
@@ -174,6 +174,7 @@ Install Zod by this PRD if PRD 02 did not already install it.
 | Tie | `winner: "tie"`. Verdict text may still explain the deadlock. |
 | Ollama down | `OLLAMA_UNAVAILABLE`. |
 | Judge model equals a speaker model | `400 INVALID_INPUT`. No model call. |
+| Speaker model is outside the debater roster, or judge model is not `gemma2:9b` | `400 INVALID_INPUT`. No model call. |
 | Judge model is not in the catalog | `502 OLLAMA_UNAVAILABLE`. No model call. |
 
 The route must not keep a score from the failed attempt and merge it with the retry.

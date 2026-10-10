@@ -94,7 +94,7 @@ The manual list must include:
 
 - Topic of 7 characters after trim cannot start. Topic of 8 can.
 - The same character cannot occupy both slots.
-- Two speaker models outside the size band cannot start. The judge model cannot be either speaker's model.
+- A model outside the debater roster is not offered. The same debater model cannot fill both slots. Start stays disabled when `gemma2:9b` is not installed.
 - Cancel during speech 1 leaves the debate on speech 1.
 - Pause after a speech waits. Resume continues with the next speaker, not a repeated speech.
 - A forced bad judge response, or Ollama stopped after speech 6, does not show a winner.
@@ -124,9 +124,9 @@ OLLAMA_INTEGRATION=1 npm run test:ollama
 
 ### Manual happy path
 
-1. Start Ollama and confirm `/api/ollama/health` lists installed models in the UI, without showing a URL. Pull two models in the same size band and a third model for the judge if they are not already installed.
+1. Start Ollama and confirm the status panel does not show a URL. Pull `mistral:7b`, `qwen2.5:7b`, `llama3.1:8b`, and `gemma2:9b` if they are not already installed.
 2. Open `/` at a desktop width. Enter `Should AI replace human teachers?`
-3. Choose two different characters. Assign each a model in the same size band. Choose a judge model that is neither of those. Confirm slot A says For and slot B says Against.
+3. Choose two different characters. Assign two different debater models. Confirm the judge line says `gemma2:9b`, that no other installed model is listed, and that slot A says For and slot B says Against.
 4. Start. Confirm speeches appear in order, each with a name, a model name, and a side, and that the status names the active speaker.
 5. Wait through three rounds and judging.
 6. Confirm the results heading, both speaker model names, the judge model, both weighted scores, four criteria, verdict, strongest argument, weakness, transcript, and the sentence `This verdict is an AI-generated evaluation, not an objective ruling.`

@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-DebAIte is a local, account-free debate game. A person picks two AI characters, assigns each an installed local model, gives them a topic, watches a three-round argument, and reads a scored verdict from a different model acting as judge.
+DebAIte is a local, account-free debate game. A person picks two AI characters, assigns each a model from a fixed debater list, gives them a topic, watches a three-round argument, and reads a scored verdict from a fixed judge model.
 
 This PRD is the shared context for PRDs 01–08. It fixes the product scope, the runtime boundaries, and the contracts those PRDs must not contradict. It does not specify every screen or prompt.
 
@@ -17,8 +17,8 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 
 ### Included
 
-- One playable loop: choose a topic, two characters, a model for each character, and a judge model; run three rounds; judge the transcript; show the result; play again.
-- Three built-in characters: Rex, Athena, and Jester. The player assigns an installed local model to each speaker. That character's system prompt is sent to the chosen model. The judge is a third installed model and is not either speaker's model.
+- One playable loop: choose a topic, two characters, and one debater model for each character; run three rounds; judge the transcript with the fixed judge model; show the result; play again.
+- Three built-in characters: Rex, Athena, and Jester. The player assigns each speaker one model from the debater roster below. That character's system prompt is sent to the chosen model. The judge is always `gemma2:9b`.
 - Server-side calls to a local Ollama server.
 - Setup, debate, and results screens whose look comes from `DESIGN.md`.
 - Deterministic tests for rules that do not need a model.
@@ -29,17 +29,17 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 - Saved debate history or sharing a debate by URL.
 - A character-creation editor.
 - Streaming tokens to the browser.
-- Hosted model APIs, and more than one Ollama server. The player chooses among models already installed in the one local Ollama.
+- Hosted model APIs, and more than one Ollama server. The player does not pick from every model installed in Ollama. Speaker choices are the debater roster, and the judge tag is fixed.
 - Hosting the Next.js app on Vercel, or any setup that assumes a home Ollama server is publicly reachable.
 - Claiming the judge is unbiased, objective, or an authority outside the game.
 
 ### Target experience
 
-The product should be understandable to someone who does not know how language models work. The fun comes from distinct personalities arguing through models the player chose, short arguments, a clear ending, and a results screen. The product is a match with a result, not an open two-column chat. Appearance is specified in `DESIGN.md`, not in this overview.
+The product should be understandable to someone who does not know how language models work. The fun comes from distinct personalities arguing through the fixed debater models, short arguments, a clear ending, and a results screen. The product is a match with a result, not an open two-column chat. Appearance is specified in `DESIGN.md`, not in this overview.
 
 ## 4. Requirements
 
-- P-1. The first version is complete when a player can run the journey in section 5 on a machine where Ollama is running and at least three models are installed: two of similar size for the speakers, and a different one for the judge.
+- P-1. The first version is complete when a player can run the journey in section 5 on a machine where Ollama is running and the four roster tags are installed: `mistral:7b`, `qwen2.5:7b`, and `llama3.1:8b` for the speakers, and `gemma2:9b` for the judge.
 - P-2. The browser never calls Ollama and never receives `OLLAMA_BASE_URL`.
 - P-3. Debate progress lives in React state in the browser. Reloading the page discards the session.
 - P-4. The server does not store debate sessions. Each turn or judge request includes the transcript it needs.
@@ -57,7 +57,7 @@ The product should be understandable to someone who does not know how language m
 
 1. The player opens DebAIte on the setup phase.
 2. They enter a topic, such as "Should AI replace human teachers?"
-3. They assign two different characters to slot A and slot B, choose an installed model for each character, and choose a judge model that is neither speaker's model.
+3. They assign two different characters to slot A and slot B and choose two different debater models. The judge is `gemma2:9b` and is not chosen from a list.
 4. They start the debate. Speeches generate one after another. Each speech uses the model chosen for that speaker.
 5. They can pause before the next speech or cancel the speech that is generating.
 6. After the sixth speech, the judge model runs.
@@ -183,7 +183,14 @@ The turn route calls `generate` with `debaterAModel` when `speaker` is `a`, and 
 
 ### Model choice
 
-A match still has two speakers. The third character sits out. The player chooses the models; the character registry does not store one.
+A match still has two speakers. The third character sits out. The player chooses two models from a fixed debater roster. The character registry does not store a model. The judge is not a choice.
+
+```ts
+const DEBATER_MODELS = ["mistral:7b", "qwen2.5:7b", "llama3.1:8b"] as const;
+const JUDGE_MODEL = "gemma2:9b";
+```
+
+Expected sizes, which are why every debater pair is a fair match: `mistral:7b` is 7.2B, `qwen2.5:7b` is 7.6B, `llama3.1:8b` is 8.0B, and `gemma2:9b` is 9.2B. The largest debater divided by the smallest is about 1.11. Setup shows only these four tags. Health still returns every installed tag so the app can tell which roster tags are present. Do not offer any other tag, and do not offer a text field for a model name.
 
 Health returns the installed catalog:
 
@@ -201,9 +208,10 @@ Two speaker models are in the same size band when both sizes are finite numbers 
 Rules for a start, a turn request, and a judge request:
 
 - Each model name is trimmed, then 1 to 200 characters, with no NUL.
-- `debaterAModel` and `debaterBModel` are different exact strings, both present in the catalog, both with a non-null size, and in the same size band.
-- `judgeModel` is a different exact string from both speaker models and is present in the catalog. Its size is not compared with the speakers, and a null size is allowed.
-- A name that is not in the catalog is `OLLAMA_UNAVAILABLE`. A blank name, a pair outside the size band, a speaker model with a null size, or a judge model equal to either speaker is `INVALID_INPUT`.
+- `debaterAModel` and `debaterBModel` are different exact strings, each one of `DEBATER_MODELS`, both present in the catalog, both with a non-null size, and in the same size band.
+- `judgeModel` is exactly `JUDGE_MODEL` and is present in the catalog. Its size is not compared with the speakers.
+- A speaker name outside `DEBATER_MODELS`, a judge name other than `JUDGE_MODEL`, a blank name, a pair outside the size band, or a speaker model with a null size is `INVALID_INPUT`.
+- A roster name that is not in the catalog is `OLLAMA_UNAVAILABLE`.
 - The personality prompt does not mention the model name. The judge prompt does not mention character names, personality text, or model names. The speech card and the results screen show the model name as text.
 
 Model JSON, before the app adds scores:
@@ -358,7 +366,7 @@ docs/prd/
 
 - The Next.js server and Ollama run on the same Ubuntu machine unless `OLLAMA_BASE_URL` says otherwise.
 - `127.0.0.1:11434` is the default. If the Next.js process cannot reach Ollama at that address, change the env var. Do not hard-code a second address.
-- The player installs models themselves. The app lists the tags Ollama already has and does not pull new ones.
+- The player pulls the four roster tags. The app does not pull models. Health still lists every installed tag, and setup offers only the roster.
 - `npm run dev` remains the development command.
 - Unit tests must pass with no Ollama process. A live model check is opt-in through `OLLAMA_INTEGRATION=1`.
 
@@ -369,7 +377,7 @@ Deploying the frontend to a public host does not expose Ollama running on a home
 ### Architectural decisions
 
 - Client-owned state keeps the server stateless and avoids a session store that would be wrong on a future multi-instance host.
-- The player picks the two speaker models and a different judge model. Personalities are prompts applied to those models. Speaker models must be in the same size band so a much larger model does not win by size alone. The judge may be larger.
+- The player picks two of the three debater tags. Personalities are prompts applied to those models. The roster is already inside the size band, and the server still checks that band. The judge is the fixed `gemma2:9b` tag, which is a different model and may be larger.
 - Non-streaming responses are easier to validate. Local models can be slow; the UI must show an active generating state instead of a silent spinner with no status text.
 - Automatic advance matches "watch the debate." Pause stops the next request only. Cancel aborts the current request and does not append a speech.
 - The judge sees `Debater A` and `Debater B` only. Names and personality text stay out of that prompt so the score is about the arguments.
@@ -379,7 +387,7 @@ Deploying the frontend to a public host does not expose Ollama running on a home
 
 - Small local models may ignore JSON format or the assigned side. Validation and a single judge retry cover malformed output. They do not guarantee persuasive speeches. Prompt rules live in PRDs 03 and 05.
 - Six sequential generations plus judging can take several minutes. Switching models between speakers can reload weights and make that wait longer. Timeouts must end in an error and a retry, not a stuck loading flag.
-- Uneven model sizes make the match about size. The size band is what blocks that. A judge that is also one of the speakers can favor that speaker's style, so the judge model has to be a third tag.
+- Uneven model sizes make the match about size. The fixed debater roster is what blocks that, and the size band remains a server check. The judge is a fourth tag, `gemma2:9b`, so it cannot share a model with either speaker.
 - `cacheComponents` can prerender a GET that does not touch runtime data. The health route must perform a real Ollama request.
 - `.gitignore` currently ignores `.env*`, including `.env.example`, until an exception is added.
 
@@ -405,8 +413,8 @@ None. This document is the parent context. PRDs 01–08 depend on it.
 - Ollama down: health reports not ready, and turn or judge routes return `OLLAMA_UNAVAILABLE`. The shell still renders.
 - Reload mid-debate: the player lands on setup with empty session state. The MVP does not restore it.
 - Both players assigned the same character: `INVALID_INPUT`. The debate does not start.
-- Both speakers assigned the same model, a judge model equal to either speaker, or speaker models outside the size band: `INVALID_INPUT`. The debate does not start.
-- A requested model is not in the catalog: `OLLAMA_UNAVAILABLE`.
+- Both speakers assigned the same model, a model outside the debater roster, a judge other than `gemma2:9b`, or speaker models outside the size band: `INVALID_INPUT`. The debate does not start.
+- A roster model is not in the catalog: `OLLAMA_UNAVAILABLE`.
 - Model picks a winner inside JSON: discard that field and use `weightedUnits`.
 - Tied `weightedUnits`: `winner` is `"tie"`. Do not break the tie by name, slot, or style.
 - Subjective topics are valid. The app does not pick a factually correct side before the debate.
