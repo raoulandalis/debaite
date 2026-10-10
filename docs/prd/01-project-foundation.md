@@ -2,11 +2,11 @@
 
 ## 1. Purpose
 
-Give DebAIte a dark game shell and a test runner before any debate behavior exists. Later PRDs should add screens and logic to this shell instead of restyling the create-next-app starter again.
+Give DebAIte an application shell and a test runner before any debate behavior exists. The shell’s look comes from `DESIGN.md`. Later PRDs should add screens and logic to this shell instead of restyling the create-next-app starter again.
 
 ## 2. User stories
 
-- F-US-1. As a player, I see a DebAIte page with a readable dark layout on a phone and on a desktop.
+- F-US-1. As a player, I see a DebAIte page with a readable layout on a phone and on a desktop.
 - F-US-2. As a player, I can reach the main content with a keyboard and see where focus is.
 - F-US-3. As a developer, I can run `npm test` without Ollama and without changing the existing Next.js project structure.
 
@@ -16,7 +16,7 @@ Give DebAIte a dark game shell and a test runner before any debate behavior exis
 
 - Keep the current Next.js 16.4 app. Do not re-run `create-next-app` and do not replace `next.config.ts`.
 - Replace the starter home page with a DebAIte shell.
-- Dark design tokens, Geist fonts already loaded in `app/layout.tsx`, and focus and reduced-motion styles.
+- The palette, type, and theme recorded in `DESIGN.md`, wired into CSS variables and Tailwind, plus focus and reduced-motion styles.
 - Five UI primitives: button, card, textarea, label, and badge.
 - Vitest, plus one render test that the shell shows the product name.
 - A short note in the shell that a full debate arrives in later work. Do not build topic submission, character choice, or API calls here.
@@ -24,7 +24,7 @@ Give DebAIte a dark game shell and a test runner before any debate behavior exis
 ### Excluded
 
 - Ollama, characters, debate state, judging, and the results screen.
-- A light theme or a theme toggle.
+- A second theme or a theme toggle. The shell uses the single theme `DESIGN.md` records.
 - New routes besides the existing `/` page.
 - `.env.example`. PRD 02 adds that file and the `.gitignore` exception `!.env.example`.
 - Rewriting `README.md`. PRD 08 owns the developer setup docs.
@@ -46,25 +46,10 @@ Confirmed before this PRD was written:
 ## 4. Requirements
 
 - F-1. `npm run dev`, `npm run build`, `npm run lint`, and `npm test` all succeed after this PRD.
-- F-2. `app/layout.tsx` metadata title is `DebAIte`. The description says it is an AI debate game. Keep Geist and Geist Mono.
-- F-3. The document is dark by default. Do not switch colors with `prefers-color-scheme`.
-- F-4. `:root` defines these tokens, and Tailwind theme colors point at them:
-
-  | Token | Value | Use |
-  | --- | --- | --- |
-  | `--background` | `#07090f` | Page background |
-  | `--surface` | `#121826` | Panels |
-  | `--surface-raised` | `#1a2233` | Raised panels |
-  | `--foreground` | `#f4f7fb` | Primary text |
-  | `--muted` | `#9aa6b8` | Secondary text |
-  | `--border` | `#2a3548` | Borders |
-  | `--danger` | `#ff6b6b` | Errors |
-  | `--success` | `#3dd68c` | Positive status |
-  | `--rex` | `#ff5a36` | Rex accent |
-  | `--athena` | `#3ec6ff` | Athena accent |
-  | `--jester` | `#f5c542` | Jester accent |
-
-- F-5. Body text uses the Geist sans variable, not `Arial`.
+- F-2. `app/layout.tsx` metadata title is `DebAIte`. The description says it is an AI debate game. Load the typefaces `DESIGN.md` names. The starter Geist and Geist Mono faces stay only when `DESIGN.md` keeps them.
+- F-3. The page uses the single theme in `DESIGN.md`. Do not switch colors with `prefers-color-scheme`, and do not add a theme toggle.
+- F-4. `:root` defines the color roles `DESIGN.md` records, and Tailwind theme colors point at them. Copy the values from `DESIGN.md`. Do not invent a second palette in this PRD. Include a role for page background, panels, raised panels, primary text, secondary text, borders, errors, positive status, and one color each for Rex, Athena, and Jester.
+- F-5. Body text uses the text face `DESIGN.md` names, not `Arial`.
 - F-6. The home page renders an `h1` whose accessible name is `DebAIte`, a one-sentence description of the game, and a main region with `id="main"`.
 - F-7. The first focusable control in the body is a skip link "Skip to main content" that targets `#main`. It may be visually hidden until focused.
 - F-8. Interactive primitives show a visible focus ring using `focus-visible`. Do not remove the outline without a replacement.
@@ -79,7 +64,7 @@ Confirmed before this PRD was written:
 - F-17. Add Vitest with a `test` script. Tests do not start Next.js and do not call the network.
 - F-18. One component test renders the home page and asserts the `h1` text `DebAIte`.
 - F-19. Do not add debate components, route handlers, or env files in this PRD.
-- F-20. Character accent tokens exist now so later character UI does not invent a second palette.
+- F-20. Rex, Athena, and Jester each have one color role taken from `DESIGN.md`, so later character UI does not invent a second palette. Later PRDs may refer to those roles as `--rex`, `--athena`, and `--jester`. The values come from `DESIGN.md`.
 
 ## 5. Technical approach
 
@@ -114,7 +99,7 @@ Delete starter-only markup from `app/page.tsx` (Next and Vercel links and images
 
 ## 6. Dependencies
 
-- PRD 00 for the visual direction and the rule against recreating the Next.js app.
+- PRD 00 for product scope, and `DESIGN.md` for visual direction. Do not recreate the Next.js app.
 - No runtime dependency on PRDs 02–08.
 
 Packages this PRD may add:
@@ -128,7 +113,7 @@ Do not add Zod, `server-only`, or an Ollama client here.
 
 - shadcn CLI incompatibility: fall back to local primitives. Do not block the shell on the CLI.
 - `prefers-reduced-motion`: the skip link and buttons remain usable with no required animation.
-- Missing font: Geist is already configured. Do not add a second display font.
+- Missing font: load the faces `DESIGN.md` names. Do not add a face that file does not name.
 - Build must still pass with `cacheComponents` and the other existing Next config flags untouched.
 
 ## 8. Testing strategy
@@ -142,7 +127,7 @@ No Ollama test belongs here.
 
 ## 9. Acceptance criteria
 
-- AC-F-1. The home page shows `DebAIte` as the `h1` on a `#07090f` page background.
+- AC-F-1. The home page shows `DebAIte` as the `h1` on the page background color recorded in `DESIGN.md`.
 - AC-F-2. A keyboard user can focus the skip link and then move into `#main`.
 - AC-F-3. `Button`, `Card`, `Textarea`, `Label`, and `Badge` exist under `components/ui/`.
 - AC-F-4. `npm test`, `npm run lint`, and `npm run build` pass.
@@ -152,7 +137,7 @@ No Ollama test belongs here.
 ## 10. Implementation tasks
 
 1. Read the Next.js docs for the layout and CSS files you will edit.
-2. Add the dark tokens and wire Tailwind colors. Remove the light and `prefers-color-scheme` theme switch.
+2. Read `DESIGN.md`. If it is missing, choose the shell’s direction with Impeccable and write `DESIGN.md` before styling. Wire its color roles and type into Tailwind. Remove the starter light theme and the `prefers-color-scheme` switch.
 3. Update metadata, the skip link, and the shell page.
 4. Add the five UI primitives, using shadcn or the local fallback.
 5. Add Vitest and `tests/shell.test.tsx`.
@@ -161,4 +146,4 @@ No Ollama test belongs here.
 
 ## 11. Open questions
 
-None. If the shadcn CLI fails, the fallback in F-16 is the decision.
+The shell’s palette, type, and theme are decided in `DESIGN.md`, not in this PRD. If the shadcn CLI fails, the fallback in F-16 is the decision.

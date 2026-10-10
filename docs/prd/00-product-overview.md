@@ -20,7 +20,7 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 - One playable loop: choose a topic and two characters, run three rounds, judge the transcript, show the result, play again.
 - Three built-in characters: Rex, Athena, and Jester. Personalities come from system prompts, not from separate models.
 - Server-side calls to a local Ollama server.
-- Dark, game-like setup, debate, and results screens.
+- Setup, debate, and results screens whose look comes from `DESIGN.md`.
 - Deterministic tests for rules that do not need a model.
 
 ### Non-goals
@@ -35,7 +35,7 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 
 ### Target experience
 
-The product should be understandable to someone who does not know how language models work. The fun comes from distinct personalities, short arguments, a clear ending, and a results screen. It should feel like a small competitive game, not a two-column chat app.
+The product should be understandable to someone who does not know how language models work. The fun comes from distinct personalities, short arguments, a clear ending, and a results screen. The product is a match with a result, not an open two-column chat. Appearance is specified in `DESIGN.md`, not in this overview.
 
 ## 4. Requirements
 
@@ -49,6 +49,7 @@ The product should be understandable to someone who does not know how language m
 - P-8. Invalid judge output never becomes a displayed score. The UI keeps the transcript and offers a way to judge again.
 - P-9. Results copy must say that the verdict is an AI-generated evaluation, not an objective ruling. The exact sentence is the disclaimer in section 5.
 - P-10. Later PRDs use the error codes, routes, and data shapes in section 5. They do not invent parallel codes for the same failure.
+- P-11. Visual decisions live in `DESIGN.md` at the repo root. That file is Impeccable’s record of the chosen direction: palette, type, light or dark theme, density, and character color. These PRDs do not set those values. A screen that needs a color uses the role `DESIGN.md` names. If `DESIGN.md` is missing when visual work starts, choose the direction with Impeccable and write `DESIGN.md` before styling.
 
 ## 5. Technical approach
 
@@ -349,7 +350,7 @@ Deploying the frontend to a public host does not expose Ollama running on a home
 
 ### Roadmap
 
-1. PRD 01 — shell, tokens, test runner.
+1. PRD 01 — shell, the visual system in `DESIGN.md`, test runner.
 2. PRD 02 — Ollama gateway.
 3. PRD 03 — characters and prompts.
 4. PRD 04 — debate state machine.
