@@ -106,20 +106,27 @@ export async function listInstalledModels(): Promise<
 
 export async function checkHealth(): Promise<HealthResponse> {
   const config = loadOllamaConfig();
+  const down = (): HealthResponse => ({
+    ...healthFromTags(null, config.model),
+    models: [],
+  });
   if (config.baseUrl === null) {
-    return healthFromTags(null, config.model);
+    return down();
   }
   try {
     const response = await fetch(`${config.baseUrl}/api/tags`, {
       signal: AbortSignal.timeout(config.timeoutMs),
     });
     if (!response.ok) {
-      return healthFromTags(null, config.model);
+      return down();
     }
-    const names = parseTagNames(await response.json());
-    return healthFromTags(names, config.model);
+    const body: unknown = await response.json();
+    return {
+      ...healthFromTags(parseTagNames(body), config.model),
+      models: parseInstalledModels(body) ?? [],
+    };
   } catch {
-    return healthFromTags(null, config.model);
+    return down();
   }
 }
 

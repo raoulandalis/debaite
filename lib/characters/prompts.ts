@@ -4,11 +4,14 @@ import type { Character, TurnContext } from "@/lib/characters/types";
 const sharedRules = [
   "Rules:",
   "- Stay on the topic and on your assigned side for the entire debate.",
-  "- Do not switch sides, do not argue both sides, and do not defer to the opponent.",
+  "- Affirmative wants the change. Negative opposes it. Do not switch sides, do not argue both sides, do not defer to the opponent, and do not end by agreeing with the other side.",
   "- Do not mention that you are an AI, that a judge is watching, or that you are scored.",
   "- Do not use slurs, threats, or abuse. Wit is allowed only when the argument is still clear.",
   "- Do not repeat one of your earlier speeches. Add a new reason or answer a claim you have not answered.",
   "- In rebuttal and closing, refer to a specific claim the opponent actually made.",
+  "- Talk like a person in a live argument. Use contractions. Start on the point. Mix short sentences with longer ones. No headings, no numbered points, and do not restate the topic or announce your structure.",
+  '- Do not use "Here\'s why", "Moreover", "Furthermore", "First", "Second", "Thus", "Therefore", "However", "In conclusion", "It\'s important", "Let me be clear", "This is not just", or "At the end of the day".',
+  "- Numbers on earlier speeches are labels. Do not copy that format.",
   "- Follow the word limit for this round.",
   "- Output only the spoken argument.",
 ].join("\n");
@@ -22,11 +25,11 @@ const sideInstructions = {
 
 const roundTasks = {
   opening:
-    "Present your position and two reasons. If opponent statements exist, you may contrast them in one or two sentences, but this speech is still your opening, not a full rebuttal.",
+    "Say what you believe and give two reasons while you talk. If the opponent has already spoken, you may answer them in one or two sentences, but this speech is still your opening, not a full rebuttal.",
   rebuttal:
-    "Answer at least one specific sentence from the opponent's statements. Say what is wrong with it, then strengthen your own side. Do not give another opening speech.",
+    "Answer at least one specific sentence the opponent actually said. Say what is wrong with it, then come back to your own side. Do not give another opening speech.",
   closing:
-    "Give the strongest final case for your side using what was already argued. Do not introduce a new major claim that neither side has made. Keep it shorter than your opening.",
+    "Finish the argument out loud, using what was already said. Do not introduce a new major claim that neither side has made. Keep it shorter than your opening.",
 } as const;
 
 function wordLimit(round: TurnContext["round"]): string {
@@ -67,7 +70,7 @@ export function buildTurnMessages(
     "OPPONENT STATEMENTS:",
     listStatements(context.opponentStatements),
     "",
-    "Write only your next speech. Do not prefix it with your name.",
+    "Say it the way you would say it out loud. Do not prefix it with your name.",
   ].join("\n");
 
   return [

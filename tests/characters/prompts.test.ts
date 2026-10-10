@@ -3,11 +3,11 @@ import { CHARACTERS, buildTurnMessages, statementsForSpeaker } from "@/lib/chara
 import type { Turn } from "@/lib/debate/types";
 
 const openingTask =
-  "Present your position and two reasons. If opponent statements exist, you may contrast them in one or two sentences, but this speech is still your opening, not a full rebuttal.";
+  "Say what you believe and give two reasons while you talk. If the opponent has already spoken, you may answer them in one or two sentences, but this speech is still your opening, not a full rebuttal.";
 const rebuttalTask =
-  "Answer at least one specific sentence from the opponent's statements. Say what is wrong with it, then strengthen your own side. Do not give another opening speech.";
+  "Answer at least one specific sentence the opponent actually said. Say what is wrong with it, then come back to your own side. Do not give another opening speech.";
 const closingTask =
-  "Give the strongest final case for your side using what was already argued. Do not introduce a new major claim that neither side has made. Keep it shorter than your opening.";
+  "Finish the argument out loud, using what was already said. Do not introduce a new major claim that neither side has made. Keep it shorter than your opening.";
 
 function messagesFor(
   character: (typeof CHARACTERS)[keyof typeof CHARACTERS],
@@ -38,7 +38,19 @@ test("builds an opening for Rex with an empty transcript", () => {
   expect(system).not.toContain("llama3.2:latest");
   expect(user).not.toContain("llama3.2:latest");
   expect(system).toContain("Provocateur");
+  expect(system).toContain("short sentences");
+  expect(system).toContain("One jab, then the claim.");
   expect(system).toContain("Do not use slurs, threats, or abuse.");
+  expect(system).toContain("Affirmative wants the change.");
+  expect(system).toContain("do not end by agreeing with the other side.");
+  expect(system).toContain("not writing a column.");
+  expect(system).toContain("Talk like a person in a live argument.");
+  expect(system).toContain("Use contractions.");
+  expect(system).toContain('Do not use "Here\'s why"');
+  expect(user).toContain(
+    "Say it the way you would say it out loud. Do not prefix it with your name.",
+  );
+  expect(system).toContain("Numbers on earlier speeches are labels.");
   expect(system).toContain("Word limit: 80 to 140 words.");
   expect(user).toContain(openingTask);
 });
@@ -58,6 +70,10 @@ test("builds a rebuttal that quotes the opponent and keeps the round task", () =
   expect(user).toContain("Do not give another opening speech.");
   expect(user).toContain(rebuttalTask);
   expect(system).toContain("80 to 140 words");
+  expect(system).toContain("not giving a lecture.");
+  expect(system).toContain('You connect claims with "because" and "so".');
+  expect(system).toContain("You do not number your points.");
+  expect(system).not.toContain("ordered reasons");
 });
 
 test("keeps own and opponent speeches under separate headings", () => {
@@ -83,6 +99,8 @@ test("keeps own and opponent speeches under separate headings", () => {
   expect(opponentSection).not.toContain("Teachers should stay in the room.");
   expect(user).toContain(closingTask);
   expect(system).toContain("60 to 100 words");
+  expect(system).toContain("not reading a script.");
+  expect(system).toContain("You use one analogy, then make the point.");
 });
 
 test("an opening may mention an existing opponent statement without becoming a rebuttal", () => {

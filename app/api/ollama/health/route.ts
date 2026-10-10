@@ -6,6 +6,7 @@ const down = (modelName: string | null): HealthResponse => ({
   ok: false,
   modelReady: false,
   modelName,
+  models: [],
 });
 
 export async function GET() {

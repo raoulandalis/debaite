@@ -15,8 +15,8 @@ const setup = {
   topic: "Should AI replace human teachers?",
   debaterAId: "rex",
   debaterBId: "athena",
-  debaterAModel: "llama3.2:latest",
-  debaterBModel: "qwen2.5:7b",
+  debaterAModel: "mistral:7b",
+  debaterBModel: "llama3.1:8b",
   judgeModel: "gemma2:9b",
 };
 
@@ -40,9 +40,10 @@ const modelOutput = {
 };
 
 const catalog = [
-  { name: "llama3.2:latest", parameterBillions: 8 },
-  { name: "qwen2.5:7b", parameterBillions: 7 },
-  { name: "gemma2:9b", parameterBillions: 9 },
+  { name: "mistral:7b", parameterBillions: 7.2 },
+  { name: "qwen2.5:7b", parameterBillions: 7.6 },
+  { name: "llama3.1:8b", parameterBillions: 8 },
+  { name: "gemma2:9b", parameterBillions: 9.2 },
 ];
 
 function transcript(count = 6) {
@@ -207,9 +208,9 @@ test("rejects speaker models outside the size band", async () => {
   vi.mocked(listInstalledModels).mockResolvedValue({
     ok: true,
     models: [
-      { name: "llama3.2:latest", parameterBillions: 7 },
-      { name: "qwen2.5:7b", parameterBillions: 14 },
-      { name: "gemma2:9b", parameterBillions: 9 },
+      { name: "mistral:7b", parameterBillions: 7 },
+      { name: "llama3.1:8b", parameterBillions: 14 },
+      { name: "gemma2:9b", parameterBillions: 9.2 },
     ],
   });
 

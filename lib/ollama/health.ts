@@ -1,4 +1,4 @@
-import type { HealthResponse } from "@/lib/ollama/errors";
+import type { HealthStatus } from "@/lib/ollama/errors";
 
 export type InstalledModel = {
   name: string;
@@ -15,7 +15,7 @@ export function matchModel(tagNames: string[], modelName: string): boolean {
 export function healthFromTags(
   tagNames: string[] | null,
   modelName: string | null,
-): HealthResponse {
+): HealthStatus {
   if (tagNames === null) {
     return { ok: false, modelReady: false, modelName };
   }

@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { z } from "zod";
-import { restoreDebate, validateRoster } from "@/lib/debate";
+import { restoreDebate, validateModelChoice, validateRoster } from "@/lib/debate";
 import type { DebateState } from "@/lib/debate";
 import { buildJudgeMessages, parseJudgeOutput, toJudgment } from "@/lib/judge";
 import { generate, listInstalledModels } from "@/lib/ollama/client";
@@ -60,6 +60,11 @@ export async function POST(request: Request) {
   }
   if (restored.value.status !== "awaiting_judge") {
     return errorResponse("DEBATE_STATE_CONFLICT", "The debate is not ready for the judge.");
+  }
+
+  const choice = validateModelChoice(restored.value);
+  if (!choice.ok) {
+    return errorResponse(choice.code, choice.message);
   }
 
   const catalog = await listInstalledModels();

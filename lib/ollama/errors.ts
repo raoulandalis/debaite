@@ -19,10 +19,14 @@ export type GenerateResult =
   | { ok: true; text: string }
   | { ok: false; code: GatewayErrorCode; message: string };
 
-export type HealthResponse = {
+export type HealthStatus = {
   ok: boolean;
   modelReady: boolean;
   modelName: string | null;
+};
+
+export type HealthResponse = HealthStatus & {
+  models: { name: string; parameterBillions: number | null }[];
 };
 
 export const gatewayMessages = {

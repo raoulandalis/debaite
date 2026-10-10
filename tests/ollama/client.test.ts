@@ -202,6 +202,7 @@ test("checkHealth reads tags and reports the configured model", async () => {
     ok: true,
     modelReady: true,
     modelName: "llama3.2",
+    models: [{ name: "llama3.2:latest", parameterBillions: null }],
   });
   expect(fetchCall()[0]).toBe("http://127.0.0.1:11434/api/tags");
   expect(await checkHealth()).not.toHaveProperty("baseUrl");
@@ -257,6 +258,7 @@ test("checkHealth stays down when tags cannot be fetched", async () => {
     ok: false,
     modelReady: false,
     modelName: "llama3.2",
+    models: [],
   });
 });
 
