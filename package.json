@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:ollama": "VITEST_INCLUDE_OLLAMA_LIVE=1 vitest run tests/ollama/live.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -16,6 +17,7 @@
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "shadcn": "^4.21.4"
   },
   "devDependencies": {

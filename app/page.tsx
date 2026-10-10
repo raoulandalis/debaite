@@ -1,3 +1,4 @@
+import { ModelStatus } from "@/components/setup/model-status";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -30,7 +31,8 @@ export default function Home() {
         className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-10"
         id="main"
       >
-        <Card className="max-w-[65ch]">
+        <ModelStatus />
+        <Card className="mt-6 max-w-[65ch]">
           <CardContent className="flex flex-col gap-4">
             <p className="text-lg leading-relaxed">
               Pick two AI characters, give them a topic, and watch them debate.
