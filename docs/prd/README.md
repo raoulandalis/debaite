@@ -66,4 +66,4 @@ PRD 06 needs the gateway, characters, and debate engine. It does not need the ju
 
 ## What this set deliberately excludes
 
-No database, accounts, payments, debate history, character editor, token streaming, multi-model orchestration, or deployment that publishes a home Ollama server. Those are non-goals in PRD 00.
+No database, accounts, payments, debate history, character editor, token streaming, hosted model APIs, or deployment that publishes a home Ollama server. Those are non-goals in PRD 00. Choosing among models installed in the one local Ollama is in scope.

@@ -64,8 +64,9 @@ No new `lib/` subsystem.
 
 | Situation | Required outcome |
 | --- | --- |
-| Ollama stopped before start | Setup still renders. Status says Ollama is unreachable. Start may be pressed. The turn error is recoverable. |
-| Model name missing or not pulled | Health `modelReady: false`. Generation returns `OLLAMA_UNAVAILABLE`. |
+| Ollama stopped before start | Setup still renders. Status says Ollama is unreachable. Model lists are empty, so Start stays disabled. |
+| No models installed | Health returns `ok: true` and `models: []`. Start stays disabled. |
+| A turn names a model that is not installed | Generation returns `OLLAMA_UNAVAILABLE`. |
 | Timeout | Request ends. Retry remains. The same speech or the same judging step is what retries. |
 | Invalid judge JSON twice | No scores. Transcript remains. `Retry judging` is shown. |
 | Bad topic sent directly to an API | `400 INVALID_INPUT`. |
@@ -93,10 +94,11 @@ The manual list must include:
 
 - Topic of 7 characters after trim cannot start. Topic of 8 can.
 - The same character cannot occupy both slots.
+- Two speaker models outside the size band cannot start. The judge model cannot be either speaker's model.
 - Cancel during speech 1 leaves the debate on speech 1.
 - Pause after a speech waits. Resume continues with the next speaker, not a repeated speech.
 - A forced bad judge response, or Ollama stopped after speech 6, does not show a winner.
-- Play again clears speeches and keeps both characters.
+- Play again clears speeches and keeps both characters and their models.
 - New debate keeps the topic text in the form.
 - Reload during a debate returns to an empty setup.
 
@@ -114,7 +116,7 @@ npm run lint
 npm run build
 ```
 
-All three must pass. Then, with Ollama and the configured model available:
+All three must pass. Then, with Ollama running and `OLLAMA_MODEL` installed for the live test:
 
 ```text
 OLLAMA_INTEGRATION=1 npm run test:ollama
@@ -122,14 +124,14 @@ OLLAMA_INTEGRATION=1 npm run test:ollama
 
 ### Manual happy path
 
-1. Start Ollama and confirm `/api/ollama/health` reports `modelReady: true` in the UI, without showing a URL.
+1. Start Ollama and confirm `/api/ollama/health` lists installed models in the UI, without showing a URL. Pull two models in the same size band and a third model for the judge if they are not already installed.
 2. Open `/` at a desktop width. Enter `Should AI replace human teachers?`
-3. Choose two different characters. Confirm slot A says For and slot B says Against.
-4. Start. Confirm speeches appear in order, each with a name and side, and that the status names the active speaker.
+3. Choose two different characters. Assign each a model in the same size band. Choose a judge model that is neither of those. Confirm slot A says For and slot B says Against.
+4. Start. Confirm speeches appear in order, each with a name, a model name, and a side, and that the status names the active speaker.
 5. Wait through three rounds and judging.
-6. Confirm the results heading, both weighted scores, four criteria, verdict, strongest argument, weakness, transcript, and the sentence `This verdict is an AI-generated evaluation, not an objective ruling.`
+6. Confirm the results heading, both speaker model names, the judge model, both weighted scores, four criteria, verdict, strongest argument, weakness, transcript, and the sentence `This verdict is an AI-generated evaluation, not an objective ruling.`
 7. Play again. Confirm the first speech starts over and the old verdict is gone.
-8. After the new debate ends, or by using New debate from results, confirm setup still shows the topic and characters.
+8. After the new debate ends, or by using New debate from results, confirm setup still shows the topic, characters, and model choices.
 
 ### Accessibility
 
@@ -156,7 +158,7 @@ OLLAMA_INTEGRATION=1 npm run test:ollama
 The MVP is accepted when every row below is true.
 
 - AC-A-1. `npm test`, `npm run lint`, and `npm run build` pass with Ollama stopped.
-- AC-A-2. The live Ollama test passes when `OLLAMA_INTEGRATION=1` and the configured model is installed.
+- AC-A-2. The live Ollama test passes when `OLLAMA_INTEGRATION=1` and `OLLAMA_MODEL` is installed.
 - AC-A-3. The manual happy path in section 8 was completed in a browser, including Play again and New debate.
 - AC-A-4. Cancel, pause and resume, a down-Ollama turn, and a failed or unavailable judge were each tried once. None left an endless loading state or a fake score.
 - AC-A-5. Keyboard setup, visible focus, the live region, the 390px layout, and the desktop two-column debate were checked.

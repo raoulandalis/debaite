@@ -21,7 +21,7 @@ Keep the three personalities in one registry and build the messages each debater
 
 ### Excluded
 
-- A character editor, extra characters, or per-character models.
+- A character editor, extra characters, or a model name stored on the character record. The player chooses each speaker's model and the judge model at setup. Those names are session fields from PRD 00. This PRD does not mention them in a prompt.
 - The debate state machine (PRD 04). This PRD does not decide whose turn it is. It only formats the turn it is given.
 - The judge prompt (PRD 05).
 - Portrait images. The visual is a monogram and an accent token already defined in PRD 01.
@@ -73,7 +73,7 @@ Keep the three personalities in one registry and build the messages each debater
 - C-12. The user message says to output only the speech: no speaker name, no "Opening:" label, and no markdown heading.
 - C-13. Shared rules forbid slurs, threats, and insults used in place of an argument. They allow Rex's sarcasm and Jester's jokes when a real argument is still present.
 - C-14. `statementsForSpeaker(turns, speaker)` splits a transcript into `ownStatements` and `opponentStatements` in chronological order. PRD 04 owns the transcript type. This helper may live next to the prompt builder and import that type.
-- C-15. Prompt builders must not insert the judge rubric, character ids of the opponent, or the opponent's system prompt.
+- C-15. Prompt builders must not insert the judge rubric, character ids of the opponent, the opponent's system prompt, or any model name.
 
 ## 5. Technical approach
 
@@ -181,7 +181,7 @@ PRD 06's turn route will:
 2. Take the speaker's character and side (`a` affirmative, `b` negative).
 3. Split the transcript with `statementsForSpeaker`.
 4. Call `buildTurnMessages`.
-5. Call `generate` from PRD 02 with temperature `0.8` and `numPredict` 320 for opening and rebuttal, or 240 for closing. That argument is sent as Ollama's `options.num_predict`.
+5. Call `generate` from PRD 02 with the speaker's selected model, temperature `0.8`, and `numPredict` 320 for opening and rebuttal, or 240 for closing. That argument is sent as Ollama's `options.num_predict`. Do not omit `model`, and do not pass the model name into `buildTurnMessages`.
 
 This PRD does not add that route.
 

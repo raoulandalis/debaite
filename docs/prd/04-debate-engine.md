@@ -28,7 +28,7 @@ Decide, in plain TypeScript, whether a debate can start, whose speech is next, a
 ## 4. Requirements
 
 - D-1. Implement the `DebateState` and `Turn` shapes from PRD 00 in `lib/debate/types.ts`.
-- D-2. `createDebate({ topic, debaterAId, debaterBId })` returns a result object, not a thrown error:
+- D-2. `createDebate({ topic, debaterAId, debaterBId, debaterAModel, debaterBModel, judgeModel })` returns a result object, not a thrown error:
 
   ```ts
   type StepResult<T> =
@@ -39,12 +39,13 @@ Decide, in plain TypeScript, whether a debate can start, whose speech is next, a
   Success status is `in_progress` and `turns` is empty.
 - D-3. Topic validation trims ends, then accepts 8 to 240 characters. Reject an empty result, a shorter string, a longer string, and any string that contains a NUL character. Internal spaces remain.
 - D-4. `debaterAId` and `debaterBId` must both exist in `getCharacter` and must differ. Compare ids with exact case. `rex` is valid. `Rex` is not.
+- D-4a. Trim each model name. Reject an empty result, a name longer than 200 characters, and any name that contains a NUL. `debaterAModel` and `debaterBModel` must differ as exact strings. `judgeModel` must differ from both. Store the trimmed names. This module does not check the size band or the installed catalog. PRDs 05 and 06 do that before calling Ollama.
 - D-5. Slot A is affirmative and slot B is negative. The engine does not store a separate side field. Callers derive side from the slot.
 - D-6. `getExpectedTurn` returns the next speech from the table in PRD 00 while status is `in_progress`. It returns `null` when status is `awaiting_judge` or `complete`.
 - D-7. `appendTurn(state, turn)` succeeds only when `turn.round` and `turn.speaker` equal `getExpectedTurn(state)`, and `turn.text` trims to 1–4,000 characters. Stored text is the trimmed text. Text that is empty or too long is `INVALID_INPUT`. A well-formed speech at the wrong time is `DEBATE_STATE_CONFLICT`.
 - D-8. After the sixth successful append, status is `awaiting_judge` and `getExpectedTurn` is `null`.
 - D-9. A seventh append, an append during `awaiting_judge` or `complete`, or an append with the wrong round or speaker returns `DEBATE_STATE_CONFLICT` and does not change the previous state. Functions return a new state on success. They do not mutate the input.
-- D-10. `restoreDebate({ topic, debaterAId, debaterBId, turns })` validates the setup, then appends each turn in order through the same rules as `appendTurn`. Any illegal turn fails the whole restore. A zero-length list is `in_progress`. A legal six-turn list is `awaiting_judge`.
+- D-10. `restoreDebate({ topic, debaterAId, debaterBId, debaterAModel, debaterBModel, judgeModel, turns })` validates the setup, then appends each turn in order through the same rules as `appendTurn`. Any illegal turn fails the whole restore. A zero-length list is `in_progress`. A legal six-turn list is `awaiting_judge`.
 - D-11. `markJudged(state)` moves `awaiting_judge` to `complete`. Any other status returns `DEBATE_STATE_CONFLICT`. It does not accept or invent scores.
 - D-12. The legal order is fixed: opening A, opening B, rebuttal A, rebuttal B, closing A, closing B. Tests must fail if someone reorders this.
 - D-13. This module does not import `lib/ollama/`. It may import `getCharacter` from `lib/characters/`.
@@ -57,9 +58,11 @@ Files:
 ```text
 lib/debate/types.ts
 lib/debate/validation.ts
+lib/debate/models.ts
 lib/debate/engine.ts
 lib/debate/index.ts
 tests/debate/engine.test.ts
+tests/debate/models.test.ts
 ```
 
 Keep validation separate from transition functions so the route and the UI can share `validateTopic`.
@@ -68,10 +71,14 @@ Recommended exports:
 
 ```ts
 function validateTopic(topic: string): StepResult<string>;
+function sameSizeBand(leftBillions: number, rightBillions: number): boolean;
 function createDebate(input: {
   topic: string;
   debaterAId: string;
   debaterBId: string;
+  debaterAModel: string;
+  debaterBModel: string;
+  judgeModel: string;
 }): StepResult<DebateState>;
 function getExpectedTurn(state: DebateState): { round: RoundId; speaker: SpeakerSlot } | null;
 function appendTurn(state: DebateState, turn: Turn): StepResult<DebateState>;
@@ -79,12 +86,17 @@ function restoreDebate(input: {
   topic: string;
   debaterAId: string;
   debaterBId: string;
+  debaterAModel: string;
+  debaterBModel: string;
+  judgeModel: string;
   turns: Turn[];
 }): StepResult<DebateState>;
 function markJudged(state: DebateState): StepResult<DebateState>;
 ```
 
-`createDebate` stores the trimmed topic.
+`createDebate` stores the trimmed topic and the trimmed model names.
+
+`sameSizeBand` implements the PRD 00 rule: both arguments are finite and greater than 0, and the larger divided by the smaller is at most `1.5`. The engine does not call it. The UI and the turn and judge routes do, after they read `parameterBillions` from the catalog.
 
 Do not add a `phase` field. UI phases (`setup`, `debate`, `results`) stay in PRD 06 and PRD 07.
 
@@ -113,6 +125,9 @@ Prompt construction stays in `buildTurnMessages`. The engine does not format pro
 | Topic of 241 characters | `INVALID_INPUT` |
 | Topic with a NUL | `INVALID_INPUT` |
 | Same character in both slots | `INVALID_INPUT` |
+| Same model on both speakers | `INVALID_INPUT` |
+| Judge model equal to either speaker | `INVALID_INPUT` |
+| Blank or 201-character model name | `INVALID_INPUT` |
 | Unknown id | `INVALID_INPUT` |
 | Append B while A should speak | `DEBATE_STATE_CONFLICT` |
 | Append opening when rebuttal is next | `DEBATE_STATE_CONFLICT` |
@@ -135,16 +150,18 @@ Required cases:
 - Create with Rex versus Athena, a valid topic, empty turns, status `in_progress`, expected turn opening A.
 - Reject short, long, blank, and NUL topics.
 - Reject identical ids and an unknown id.
+- Reject identical speaker models, a judge model equal to a speaker, and a blank model name.
+- `sameSizeBand(7, 8)` and `sameSizeBand(3.2, 4)` are true. `sameSizeBand(7, 14)` and `sameSizeBand(3, 8)` are false.
 - Append six scripted speeches and assert the expected turn before each append.
 - After the sixth, status is `awaiting_judge` and the next turn is `null`.
 - The state object passed into `appendTurn` is unchanged after a successful append (new object returned).
 - Wrong speaker, wrong round, seventh speech, and append after `markJudged` fail.
 - Empty text fails with `INVALID_INPUT` and leaves the original state usable for a later successful append.
-- `restoreDebate` of the same six speeches equals a debate built with six appends, comparing status, topic, ids, and turn text.
+- `restoreDebate` of the same six speeches equals a debate built with six appends, comparing status, topic, ids, model names, and turn text.
 - `restoreDebate` of five speeches is still `in_progress` and expects closing B.
 - `markJudged` succeeds only from `awaiting_judge`.
 
-Use a fixture topic `Should AI replace human teachers?` and ids `rex` and `athena`.
+Use a fixture topic `Should AI replace human teachers?`, ids `rex` and `athena`, speaker models `llama3.2:latest` and `qwen2.5:7b`, and judge model `gemma2:9b`. Those strings are fixtures. This PRD does not contact Ollama to prove they are installed.
 
 ## 9. Acceptance criteria
 

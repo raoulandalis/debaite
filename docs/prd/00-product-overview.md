@@ -2,14 +2,14 @@
 
 ## 1. Purpose
 
-DebAIte is a local, account-free debate game. A person picks two AI characters, gives them a topic, watches a three-round argument, and reads a scored verdict from a third AI role acting as judge.
+DebAIte is a local, account-free debate game. A person picks two AI characters, assigns each an installed local model, gives them a topic, watches a three-round argument, and reads a scored verdict from a different model acting as judge.
 
 This PRD is the shared context for PRDs 01–08. It fixes the product scope, the runtime boundaries, and the contracts those PRDs must not contradict. It does not specify every screen or prompt.
 
 ## 2. User stories
 
 - P-US-1. As a player, I can open the app and finish a debate without creating an account.
-- P-US-2. As a player, I can tell who is speaking, which round is active, and who won.
+- P-US-2. As a player, I can tell who is speaking, which model they are using, which round is active, and who won.
 - P-US-3. As a player, I can start another debate after I see the result.
 - P-US-4. As a developer, I can run the app against Ollama on my own machine and test the game rules without a live model.
 
@@ -17,8 +17,8 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 
 ### Included
 
-- One playable loop: choose a topic and two characters, run three rounds, judge the transcript, show the result, play again.
-- Three built-in characters: Rex, Athena, and Jester. Personalities come from system prompts, not from separate models.
+- One playable loop: choose a topic, two characters, a model for each character, and a judge model; run three rounds; judge the transcript; show the result; play again.
+- Three built-in characters: Rex, Athena, and Jester. The player assigns an installed local model to each speaker. That character's system prompt is sent to the chosen model. The judge is a third installed model and is not either speaker's model.
 - Server-side calls to a local Ollama server.
 - Setup, debate, and results screens whose look comes from `DESIGN.md`.
 - Deterministic tests for rules that do not need a model.
@@ -29,17 +29,17 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 - Saved debate history or sharing a debate by URL.
 - A character-creation editor.
 - Streaming tokens to the browser.
-- More than one model in the MVP. The gateway may accept a model name, but every MVP caller passes `OLLAMA_MODEL`.
+- Hosted model APIs, and more than one Ollama server. The player chooses among models already installed in the one local Ollama.
 - Hosting the Next.js app on Vercel, or any setup that assumes a home Ollama server is publicly reachable.
 - Claiming the judge is unbiased, objective, or an authority outside the game.
 
 ### Target experience
 
-The product should be understandable to someone who does not know how language models work. The fun comes from distinct personalities, short arguments, a clear ending, and a results screen. The product is a match with a result, not an open two-column chat. Appearance is specified in `DESIGN.md`, not in this overview.
+The product should be understandable to someone who does not know how language models work. The fun comes from distinct personalities arguing through models the player chose, short arguments, a clear ending, and a results screen. The product is a match with a result, not an open two-column chat. Appearance is specified in `DESIGN.md`, not in this overview.
 
 ## 4. Requirements
 
-- P-1. The first version is complete when a player can run the journey in section 5 on a machine where Ollama is running and the configured model is installed.
+- P-1. The first version is complete when a player can run the journey in section 5 on a machine where Ollama is running and at least three models are installed: two of similar size for the speakers, and a different one for the judge.
 - P-2. The browser never calls Ollama and never receives `OLLAMA_BASE_URL`.
 - P-3. Debate progress lives in React state in the browser. Reloading the page discards the session.
 - P-4. The server does not store debate sessions. Each turn or judge request includes the transcript it needs.
@@ -57,12 +57,12 @@ The product should be understandable to someone who does not know how language m
 
 1. The player opens DebAIte on the setup phase.
 2. They enter a topic, such as "Should AI replace human teachers?"
-3. They assign two different characters to slot A and slot B.
-4. They start the debate. Speeches generate one after another.
+3. They assign two different characters to slot A and slot B, choose an installed model for each character, and choose a judge model that is neither speaker's model.
+4. They start the debate. Speeches generate one after another. Each speech uses the model chosen for that speaker.
 5. They can pause before the next speech or cancel the speech that is generating.
-6. After the sixth speech, the judge runs.
-7. The results phase shows the winner or a tie, the scores, the verdict, the strongest argument, and the biggest weakness for each side.
-8. Play again keeps the topic and characters and starts a new transcript. New debate returns to setup with those fields still filled in.
+6. After the sixth speech, the judge model runs.
+7. The results phase shows the winner or a tie, each speaker's model, the judge model, the scores, the verdict, the strongest argument, and the biggest weakness for each side.
+8. Play again keeps the topic, characters, and model choices and starts a new transcript. New debate returns to setup with those fields still filled in.
 
 UI phases are `setup`, `debate`, and `results`. The debate engine status values are `in_progress`, `awaiting_judge`, and `complete`. `complete` means a valid judgment is attached. A judging failure stays in the debate phase.
 
@@ -89,7 +89,7 @@ Before writing route handlers or other Next.js APIs, read the matching guide und
 
 | Module | Responsibility |
 | --- | --- |
-| `components/setup/` | Topic, character choice, and start rules |
+| `components/setup/` | Topic, character choice, model choice, and start rules |
 | `components/debate/` | Round, turn, transcript, pause, cancel, retry |
 | `components/results/` | Winner, scores, verdict, rematch |
 | `components/ui/` | Button, card, textarea, label, badge |
@@ -99,7 +99,7 @@ Before writing route handlers or other Next.js APIs, read the matching guide und
 | `lib/ollama/` | HTTP client, timeout, health check, gateway errors |
 | `app/api/debate/turn/route.ts` | Validate a turn request, build the prompt, return one speech |
 | `app/api/debate/judge/route.ts` | Validate a finished transcript, judge it, attach scores |
-| `app/api/ollama/health/route.ts` | Report whether Ollama and the configured model respond |
+| `app/api/ollama/health/route.ts` | Report whether Ollama responded and list installed models |
 
 The UI may call the pure debate helpers. Only route handlers may import the Ollama client.
 
@@ -110,7 +110,7 @@ Browser session
   -> POST /api/debate/turn  or  POST /api/debate/judge
     -> validate JSON
     -> debate or judge module builds the prompt
-    -> lib/ollama calls POST {OLLAMA_BASE_URL}/api/chat
+    -> lib/ollama calls POST {OLLAMA_BASE_URL}/api/chat with that request's model
     -> route validates the model output
     -> judge route adds weighted scores and winner
   <- JSON speech or judgment, or { error: { code, message } }
@@ -135,6 +135,9 @@ type DebateState = {
   topic: string;
   debaterAId: string;
   debaterBId: string;
+  debaterAModel: string;
+  debaterBModel: string;
+  judgeModel: string;
   status: DebateStatus;
   turns: Turn[];
 };
@@ -161,6 +164,9 @@ type TurnRequest = {
   topic: string;
   debaterAId: string;
   debaterBId: string;
+  debaterAModel: string;
+  debaterBModel: string;
+  judgeModel: string;
   round: RoundId;
   speaker: SpeakerSlot;
   transcript: Turn[];
@@ -171,7 +177,34 @@ The server recomputes the legal next speech from `transcript`. If `round` and `s
 
 Turn success body: `{ round, speaker, text }`.
 
-Judge request: `topic`, `debaterAId`, `debaterBId`, and a transcript of exactly six legal turns. Reject any other length or order with `409`.
+Judge request: `topic`, `debaterAId`, `debaterBId`, `debaterAModel`, `debaterBModel`, `judgeModel`, and a transcript of exactly six legal turns. Reject any other length or order with `409`.
+
+The turn route calls `generate` with `debaterAModel` when `speaker` is `a`, and `debaterBModel` when `speaker` is `b`. The judge route calls `generate` with `judgeModel`. Neither route omits the model name, and neither writes a model name into a prompt.
+
+### Model choice
+
+A match still has two speakers. The third character sits out. The player chooses the models; the character registry does not store one.
+
+Health returns the installed catalog:
+
+```ts
+type InstalledModel = {
+  name: string;
+  parameterBillions: number | null;
+};
+```
+
+`name` is the tag name from Ollama `GET /api/tags`. `parameterBillions` is parsed from that tag's `details.parameter_size`. Accept a trimmed string matching a number and a `B` suffix, such as `3.2B`, `7B`, or `8.0B`. A missing field, `7M`, or any other shape is `null`.
+
+Two speaker models are in the same size band when both sizes are finite numbers greater than 0 and the larger divided by the smaller is at most `1.5`. `7` and `8` pass. `3.2` and `4` pass. `7` and `14` fail. `3` and `8` fail.
+
+Rules for a start, a turn request, and a judge request:
+
+- Each model name is trimmed, then 1 to 200 characters, with no NUL.
+- `debaterAModel` and `debaterBModel` are different exact strings, both present in the catalog, both with a non-null size, and in the same size band.
+- `judgeModel` is a different exact string from both speaker models and is present in the catalog. Its size is not compared with the speakers, and a null size is allowed.
+- A name that is not in the catalog is `OLLAMA_UNAVAILABLE`. A blank name, a pair outside the size band, a speaker model with a null size, or a judge model equal to either speaker is `INVALID_INPUT`.
+- The personality prompt does not mention the model name. The judge prompt does not mention character names, personality text, or model names. The speech card and the results screen show the model name as text.
 
 Model JSON, before the app adds scores:
 
@@ -236,6 +269,7 @@ The floor is 10.00 because every criterion is at least 1. The UI should label th
 
 - Topic: trim whitespace, then require 8 to 240 characters.
 - Character ids: two different ids, both present in the character registry.
+- Model names: trimmed, 1 to 200 characters, no NUL, and the pairing rules in the model-choice section.
 - Each stored speech: non-empty after trim, at most 4,000 characters.
 - At most six turns.
 - Judge prose fields: non-empty after trim, at most 600 characters each.
@@ -261,16 +295,16 @@ type ApiError = {
 
 | Code | HTTP | When |
 | --- | ---: | --- |
-| `INVALID_INPUT` | 400 | Topic, characters, or body shape is invalid |
+| `INVALID_INPUT` | 400 | Topic, characters, model pairing, or body shape is invalid |
 | `DEBATE_STATE_CONFLICT` | 409 | Requested speech or judge call does not match the transcript |
-| `OLLAMA_UNAVAILABLE` | 502 | Connection to Ollama fails, or the configured model is missing |
+| `OLLAMA_UNAVAILABLE` | 502 | Connection to Ollama fails, or the requested model is not installed |
 | `OLLAMA_TIMEOUT` | 504 | The call exceeds the timeout |
 | `MODEL_ERROR` | 502 | Ollama returns a non-OK response or an unexpected payload |
 | `INVALID_MODEL_OUTPUT` | 502 | The speech or judge JSON fails validation |
 
 `message` is one short sentence for a person. Do not send stack traces, the Ollama base URL, prompt text, or the raw model body to the browser.
 
-`GET /api/ollama/health` is not an error response. When Ollama is down it still returns HTTP 200 and `{ ok: false, modelReady: false, modelName }`. It does not use the codes above. Turn and judge routes do.
+`GET /api/ollama/health` is not an error response. When Ollama is down it still returns HTTP 200 and `{ ok: false, models: [] }`. It does not use the codes above. Turn and judge routes do.
 
 ### Generation defaults
 
@@ -290,10 +324,10 @@ Server-only. Never prefix these with `NEXT_PUBLIC_`.
 | Variable | Default | Rule |
 | --- | --- | --- |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | No trailing path beyond the host origin |
-| `OLLAMA_MODEL` | none | Required. `.env.example` shows `llama3.2` as a sample, not a promise that it is installed |
+| `OLLAMA_MODEL` | none | Optional. Used only when `generate` is called without a model, including the live test. Debates do not read it. `.env.example` may show `llama3.2` as a sample for that test. |
 | `OLLAMA_TIMEOUT_MS` | `120000` | Use the default when unset. Clamp any set value to 5,000–300,000 |
 
-Health check: `GET /api/ollama/health` returns `{ ok, modelReady, modelName }`. `ok` means Ollama responded. `modelReady` means `modelName` is installed. The body must not include the base URL. The handler must call Ollama on each request. Do not mark it `force-static` and do not wrap it in `use cache`. `cacheComponents` is already enabled; a cached health result would lie after Ollama stops.
+Health check: `GET /api/ollama/health` returns `{ ok, models }`. `ok` means Ollama responded. `models` is the installed catalog from the model-choice section. The body must not include the base URL. The handler must call Ollama on each request. Do not mark it `force-static` and do not wrap it in `use cache`. `cacheComponents` is already enabled; a cached health result would lie after Ollama stops.
 
 ### Proposed folder structure
 
@@ -324,7 +358,7 @@ docs/prd/
 
 - The Next.js server and Ollama run on the same Ubuntu machine unless `OLLAMA_BASE_URL` says otherwise.
 - `127.0.0.1:11434` is the default. If the Next.js process cannot reach Ollama at that address, change the env var. Do not hard-code a second address.
-- The player installs a model themselves. The app only checks that the configured name is present.
+- The player installs models themselves. The app lists the tags Ollama already has and does not pull new ones.
 - `npm run dev` remains the development command.
 - Unit tests must pass with no Ollama process. A live model check is opt-in through `OLLAMA_INTEGRATION=1`.
 
@@ -335,7 +369,7 @@ Deploying the frontend to a public host does not expose Ollama running on a home
 ### Architectural decisions
 
 - Client-owned state keeps the server stateless and avoids a session store that would be wrong on a future multi-instance host.
-- One model plus different prompts is enough for three personalities and a judge.
+- The player picks the two speaker models and a different judge model. Personalities are prompts applied to those models. Speaker models must be in the same size band so a much larger model does not win by size alone. The judge may be larger.
 - Non-streaming responses are easier to validate. Local models can be slow; the UI must show an active generating state instead of a silent spinner with no status text.
 - Automatic advance matches "watch the debate." Pause stops the next request only. Cancel aborts the current request and does not append a speech.
 - The judge sees `Debater A` and `Debater B` only. Names and personality text stay out of that prompt so the score is about the arguments.
@@ -344,7 +378,8 @@ Deploying the frontend to a public host does not expose Ollama running on a home
 ### Risks
 
 - Small local models may ignore JSON format or the assigned side. Validation and a single judge retry cover malformed output. They do not guarantee persuasive speeches. Prompt rules live in PRDs 03 and 05.
-- Six sequential generations plus judging can take several minutes. Timeouts must end in an error and a retry, not a stuck loading flag.
+- Six sequential generations plus judging can take several minutes. Switching models between speakers can reload weights and make that wait longer. Timeouts must end in an error and a retry, not a stuck loading flag.
+- Uneven model sizes make the match about size. The size band is what blocks that. A judge that is also one of the speakers can favor that speaker's style, so the judge model has to be a third tag.
 - `cacheComponents` can prerender a GET that does not touch runtime data. The health route must perform a real Ollama request.
 - `.gitignore` currently ignores `.env*`, including `.env.example`, until an exception is added.
 
@@ -370,6 +405,8 @@ None. This document is the parent context. PRDs 01–08 depend on it.
 - Ollama down: health reports not ready, and turn or judge routes return `OLLAMA_UNAVAILABLE`. The shell still renders.
 - Reload mid-debate: the player lands on setup with empty session state. The MVP does not restore it.
 - Both players assigned the same character: `INVALID_INPUT`. The debate does not start.
+- Both speakers assigned the same model, a judge model equal to either speaker, or speaker models outside the size band: `INVALID_INPUT`. The debate does not start.
+- A requested model is not in the catalog: `OLLAMA_UNAVAILABLE`.
 - Model picks a winner inside JSON: discard that field and use `weightedUnits`.
 - Tied `weightedUnits`: `winner` is `"tie"`. Do not break the tie by name, slot, or style.
 - Subjective topics are valid. The app does not pick a factually correct side before the debate.

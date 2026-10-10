@@ -32,12 +32,12 @@ Turn a finished transcript into a judged result the player can read, then let th
 
 - R-1. Extend the PRD 06 session with `judgment: Judgment | null`. Add reducer events `judge_started`, `judge_succeeded`, and `judge_failed`. Do not rename the PRD 06 fields.
 - R-2. Replace the PRD 06 rule that clears `pending` when the sixth speech finishes. If playback is `running`, set `pending` to `{ kind: "judge" }` instead. If playback is `paused`, leave `pending` null and show a button labeled `Judge the debate`. `resume` while status is `awaiting_judge` uses that same judge start. `resume` while a speech is still expected keeps the PRD 06 behavior.
-- R-3. The judge request POSTs the current topic, character ids, and turns to `/api/debate/judge`. Use an `AbortSignal`. `Cancel judging` aborts it, clears the pending judge, sets playback to `paused`, and does not change turns or set `judgment`.
+- R-3. The judge request POSTs the current topic, character ids, the three model names, and turns to `/api/debate/judge`. Use an `AbortSignal`. `Cancel judging` aborts it, clears the pending judge, sets playback to `paused`, and does not change turns or set `judgment`.
 - R-4. Ignore a judge response unless `pending` is `{ kind: "judge" }`. A successful body must satisfy the same shape as `Judgment` before it is stored: both sides, integer criterion scores, integer `weightedUnits`, `winner`, non-empty prose, and the exact disclaimer from PRD 00. Recompute each side with `scoreSide`. If either `weightedUnits` or `weightedDisplay` differs, reject the body and do not display it. Show `The judge response could not be verified. You can retry.` The speeches stay on the debate screen.
 - R-5. On an accepted judgment, call `markJudged`, store the judgment, set `phase` to `results`, and clear the error and pending request.
 - R-6. On `judge_failed`, stay in phase `debate`, keep all six speeches, leave `judgment` null, and show the API message plus `Retry judging`. Retry sends one new judge request. It does not regenerate speeches.
 - R-7. The page `h1` stays `DebAIte` on the results phase. The outcome is an `h2`: `{Character name} wins` when `winner` is `"a"` or `"b"`, and `Tie` when `winner` is `"tie"`. Do not show a winner name in a tie. Do not add a second `h1`.
-- R-8. Show both weighted displays beside the character names, labeled `Weighted score`. Also show the four criteria with these labels and weights:
+- R-8. Show both weighted displays beside the character names, labeled `Weighted score`. Under each character name, show that speaker's model name as text. Also show the four criteria with these labels and weights:
 
   | Label | Weight text | Score fields |
   | --- | --- | --- |
@@ -47,10 +47,10 @@ Turn a finished transcript into a judged result the player can read, then let th
   | Clarity and persuasiveness | 15% | `clarity` |
 
   Each row shows the integer for A and the integer for B. The component does not multiply those integers again for display. It shows `weightedDisplay` from the validated judgment.
-- R-9. Show `verdict` in a section headed `Verdict`. Show `strongest.a` and `strongest.b` under `Strongest argument`, each with the character name. Show `weakness.a` and `weakness.b` under `Biggest weakness`, each with the character name.
+- R-9. Show `verdict` in a section headed `Verdict`. Above the verdict text, show `Judge model: {judgeModel}`. Show `strongest.a` and `strongest.b` under `Strongest argument`, each with the character name. Show `weakness.a` and `weakness.b` under `Biggest weakness`, each with the character name.
 - R-10. Show `judgment.disclaimer` as visible text in the results main region, not only as a `title` attribute or an icon with no text.
-- R-11. `Play again` creates a new debate with the same topic and character ids, sets `judgment` to null, sets phase to `debate`, sets playback to `running`, and requests opening A. The previous speeches are gone.
-- R-12. `New debate` sets phase to `setup`, sets `debate` and `judgment` to null, and keeps `topicDraft`, `debaterAId`, and `debaterBId` so the form is still filled in.
+- R-11. `Play again` creates a new debate with the same topic, character ids, and model names, sets `judgment` to null, sets phase to `debate`, sets playback to `running`, and requests opening A. The previous speeches are gone.
+- R-12. `New debate` sets phase to `setup`, sets `debate` and `judgment` to null, and keeps `topicDraft`, the character ids, and the three model choices so the form is still filled in.
 - R-13. While judging, the debate screen stays mounted, the six speeches stay visible, and the status line is `The judge is scoring the debate.` Do not show an empty results page and do not show placeholder scores such as `0`, `--`, or `TBD`.
 - R-14. Results use the character accent and monogram for each side. The winner heading does not rely on color alone. A tie shows both names at the same visual level.
 - R-15. At 390px, the winner heading, both scores, and the criterion rows are readable without horizontal scrolling. At 1024px and above, the two characters' score columns sit side by side.
@@ -71,7 +71,7 @@ tests/results/results-screen.test.tsx
 
 `client-validate.ts` imports `scoreSide` from `lib/judge/score.ts` rather than copying the formula into the component. It returns the judgment or an error code `INVALID_MODEL_OUTPUT` for a body that does not match.
 
-The results component receives a `Judgment` and the two character records. It does not fetch.
+The results component receives a `Judgment`, the two character records, and the three model names from the debate. It does not fetch.
 
 ### Reducer additions
 
@@ -89,7 +89,8 @@ Speech `pending` and judge pending must be distinguishable so a late turn respon
 h1: DebAIte
 h2: "{Name} wins" or "Tie"
 Disclaimer
-Two summaries: monogram, name, side, weighted score
+Two summaries: monogram, name, model, side, weighted score
+Judge model line
 Four criterion rows
 Verdict
 Strongest argument: A then B
@@ -134,12 +135,12 @@ Reducer tests:
 - `judge_succeeded` with the worked example from PRD 05 stores `66.50` and phase `results`.
 - `judge_succeeded` with mismatched `weightedUnits` stays on `debate` and leaves `judgment` null.
 - `judge_failed` keeps six turns and a null judgment.
-- `Play again` produces an empty `in_progress` debate, the same ids and topic, and pending opening A.
-- `New debate` keeps the draft topic and ids and clears `debate`.
+- `Play again` produces an empty `in_progress` debate, the same ids, topic, and model names, and pending opening A.
+- `New debate` keeps the draft topic, ids, and model choices and clears `debate`.
 
 Render tests with a fixture, no fetch:
 
-- Winner fixture for Rex shows heading `Rex wins`, both weighted scores, all four criterion labels, the verdict, both strongest lines, both weakness lines, and the disclaimer.
+- Winner fixture for Rex shows heading `Rex wins`, both model names, the judge model line, both weighted scores, all four criterion labels, the verdict, both strongest lines, both weakness lines, and the disclaimer.
 - Tie fixture shows heading `Tie` and does not show `wins`.
 - A debate-screen fixture with six turns and null judgment does not show `Weighted score` or the disclaimer.
 
@@ -148,10 +149,10 @@ Manual browser check when a model is available: finish a debate, read the verdic
 ## 9. Acceptance criteria
 
 - AC-R-1. A validated judge response is the only way to reach the results phase.
-- AC-R-2. The winner heading, both weighted scores, four criteria, verdict, strongest arguments, weaknesses, and disclaimer are visible.
+- AC-R-2. The winner heading, both speaker model names, the judge model, both weighted scores, four criteria, verdict, strongest arguments, weaknesses, and disclaimer are visible.
 - AC-R-3. A tie does not name a winner.
 - AC-R-4. A judging failure leaves six speeches on the debate screen and shows `Retry judging`.
-- AC-R-5. Play again starts opening A with the same topic and characters and an empty transcript.
+- AC-R-5. Play again starts opening A with the same topic, characters, and models, and an empty transcript.
 - AC-R-6. New debate returns to a filled-in setup form.
 - AC-R-7. `npm test` passes with Ollama stopped, including a test that null `judgment` does not render scores.
 

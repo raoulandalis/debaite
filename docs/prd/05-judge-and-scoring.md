@@ -25,7 +25,7 @@ After six speeches, a judge model rates argument quality, and the application tu
 
 - The debate screen and the results layout (PRDs 06 and 07).
 - Streaming.
-- A second judge model.
+- A second judge, or a retry that switches to another model. Setup chooses one judge model.
 - Server-side storage of the verdict.
 - Any path that substitutes fallback scores, averages, or a coin flip.
 
@@ -45,7 +45,7 @@ After six speeches, a judge model rates argument quality, and the application tu
 - J-5. If the model also sends `winner`, `weightedUnits`, or a character name field, ignore those keys. Do not fail a valid score sheet only because an extra winner key is present.
 - J-6. Before parsing, strip a leading BOM and a single surrounding ` ```json ` fence if present. Then `JSON.parse`. If that throws, take the substring from the first `{` through the last `}` and parse that. If that still fails, the output is invalid.
 - J-7. `buildJudgeMessages(debate)` returns one system message and one user message. The user message contains the topic and six speeches labeled `Debater A` or `Debater B` in order. It contains the rubric and a JSON example using `debaterA` and `debaterB`.
-- J-8. The judge messages must not include character names, titles, monograms, personality prompts, or accent colors. The topic and speech text are included as the debaters wrote them, so a topic that happens to contain the word "Rex" may still appear. The builder must not look up `getCharacter` to insert a display name.
+- J-8. The judge messages must not include character names, titles, monograms, personality prompts, accent colors, or model names. The topic and speech text are included as the debaters wrote them, so a topic that happens to contain the word "Rex" may still appear. The builder must not look up `getCharacter` to insert a display name.
 - J-9. The system message tells the judge to score argument quality only: logic, engagement with the other side, support, and clarity. It tells the judge not to reward humor, confidence, sarcasm, or a preferred side, and not to identify the speakers.
 - J-10. `toJudgment(modelOutput)` maps `debaterA` to `scores.a` and `debaterB` to `scores.b`, fills `weightedUnits`, `weightedDisplay`, `winner`, `strongest`, `weakness`, and sets `disclaimer` to exactly:
 
@@ -54,7 +54,7 @@ After six speeches, a judge model rates argument quality, and the application tu
   ```
 
 - J-11. `POST /api/debate/judge` accepts `topic`, `debaterAId`, `debaterBId`, and `transcript`. It runs `restoreDebate`. If the result is not `ok` or the status is not `awaiting_judge`, return the matching error from PRD 00 (`400` or `409`) and do not call Ollama.
-- J-12. A ready transcript calls `generate` with the judge messages, `json: true`, temperature `0.3`, and `numPredict: 900`. Do not pass a separate model name.
+- J-12. A ready transcript calls `generate` with the judge messages, `model` set to `judgeModel`, `json: true`, temperature `0.3`, and `numPredict: 900`. Do not omit `model` and do not fall back to `OLLAMA_MODEL`. Before that call, reject the roster with the model rules in PRD 00. A judge model equal to either speaker, or speaker models outside the size band, is `INVALID_INPUT` and does not call Ollama. A model name missing from the catalog is `OLLAMA_UNAVAILABLE`.
 - J-13. If parsing fails, call `generate` one more time with the same messages. If the second output also fails, return `502` with `INVALID_MODEL_OUTPUT`. Do not return partial scores.
 - J-14. Gateway errors from the first call are returned immediately. Do not spend the parse retry on `OLLAMA_UNAVAILABLE`, `OLLAMA_TIMEOUT`, or `MODEL_ERROR`.
 - J-15. Success returns the `Judgment` object from PRD 00 and HTTP 200. The route does not call `markJudged`; the browser does that after it accepts the body.
@@ -147,7 +147,7 @@ Validate the request body with Zod as well: six items max is not enough; `restor
 
 ### Neutral mapping
 
-The prompt and `weightedUnits` never use `rex`, `athena`, or `jester`. The route may read those ids only to satisfy `restoreDebate`. The results UI in PRD 07 is what shows "Rex" next to `scores.a` when slot A is Rex.
+The prompt and `weightedUnits` never use `rex`, `athena`, `jester`, or the model names. The route may read the ids and model names to satisfy `restoreDebate` and to pass `judgeModel` to `generate`. The results UI in PRD 07 is what shows "Rex" and that speaker's model next to `scores.a` when slot A is Rex.
 
 ## 6. Dependencies
 
@@ -173,6 +173,8 @@ Install Zod by this PRD if PRD 02 did not already install it.
 | Model declares Debater A the winner but units say otherwise | Ignore the declaration. Use the units. |
 | Tie | `winner: "tie"`. Verdict text may still explain the deadlock. |
 | Ollama down | `OLLAMA_UNAVAILABLE`. |
+| Judge model equals a speaker model | `400 INVALID_INPUT`. No model call. |
+| Judge model is not in the catalog | `502 OLLAMA_UNAVAILABLE`. No model call. |
 
 The route must not keep a score from the failed attempt and merge it with the retry.
 
@@ -185,13 +187,13 @@ Unit tests without Ollama:
 - Fence stripping and a `{ ... }` extract from surrounding text.
 - A valid object plus an extra `winner` key still scores from the rubric.
 - Empty verdict fails.
-- `buildJudgeMessages` on a Rex-versus-Athena debate does not contain `Rex`, `Athena`, `Provocateur`, or `Strategist` when the topic and speeches avoid those words.
+- `buildJudgeMessages` on a Rex-versus-Athena debate does not contain `Rex`, `Athena`, `Provocateur`, `Strategist`, or the fixture model names when the topic and speeches avoid those words.
 - Labels `Debater A` and `Debater B` each appear three times for a full transcript.
 - `toJudgment` sets the exact disclaimer.
 
 Route test with `generate` mocked:
 
-- Valid first response returns `66.50` for the fixture and does not call `generate` twice.
+- Valid first response returns `66.50` for the fixture, calls `generate` once with `model` equal to the request's `judgeModel`, and does not call `generate` twice.
 - Invalid then valid calls `generate` twice and returns the second judgment.
 - Invalid twice returns `502` and a body with no `scores` field.
 - Timeout on the first call calls `generate` once and returns `504`.
