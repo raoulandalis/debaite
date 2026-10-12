@@ -8,9 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-const startHelper =
-  "Enter a topic of at least 8 characters, choose two different characters, and choose two installed debater models.";
-
 type CatalogModel = { name: string; parameterBillions: number | null };
 
 const characters = [CHARACTERS.rex, CHARACTERS.athena, CHARACTERS.jester];
@@ -53,15 +50,12 @@ export function SetupForm({
         </Label>
         <Textarea
           id="debate-topic"
+          placeholder="e.g. Is a hot dog a sandwich?"
           value={session.topicDraft}
           onChange={(event) =>
             onEvent({ type: "edit_setup", patch: { topicDraft: event.target.value } })
           }
         />
-        <p className="text-sm text-muted">
-          Yes/no and &quot;Should&quot; questions work well. The topic does not need one correct
-          answer.
-        </p>
       </div>
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
         <SidePanel
@@ -77,9 +71,10 @@ export function SetupForm({
           onCharacter={(id) => onEvent({ type: "edit_setup", patch: { debaterAId: id } })}
           onModel={(model) => onEvent({ type: "edit_setup", patch: { debaterAModel: model } })}
         />
-        <p className="self-center text-center font-display text-3xl tracking-wide text-foreground">
-          VS
-        </p>
+        <div className="flex flex-col items-center gap-4 self-center">
+          <p className="text-center font-display text-3xl tracking-wide text-foreground">VS</p>
+          <JudgeCard models={models} />
+        </div>
         <SidePanel
           label="Against"
           modelId="model-b"
@@ -94,20 +89,14 @@ export function SetupForm({
           onModel={(model) => onEvent({ type: "edit_setup", patch: { debaterBModel: model } })}
         />
       </div>
-      <div className="grid grid-cols-1 items-end gap-4 lg:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <p>
-            <span className="font-mono text-xs tracking-widest text-muted uppercase">Judge</span>
-          </p>
-          <p>{judgeText(models)}</p>
-          <p className="font-mono text-xs tracking-widest text-muted uppercase">3 rounds</p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Button className="h-14 w-full font-display text-2xl tracking-wide" disabled={!ready} type="submit">
-            Start debate
-          </Button>
-          {ready ? null : <p className="text-sm text-muted">{startHelper}</p>}
-        </div>
+      <div className="flex justify-center">
+        <Button
+          className="h-14 w-full max-w-md font-display text-2xl tracking-wide"
+          disabled={!ready}
+          type="submit"
+        >
+          Start debate
+        </Button>
       </div>
     </form>
   );
@@ -147,29 +136,28 @@ function SidePanel({
         <p className="font-mono text-xs tracking-widest text-muted uppercase">{player}</p>
       </div>
       {character ? (
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="font-display text-6xl leading-none tracking-wide text-foreground uppercase">
+        <button
+          aria-label={`Clear ${character.name}, ${label}`}
+          className="relative flex h-80 w-full items-end overflow-hidden rounded-sm p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-for"
+          type="button"
+          onClick={() => onCharacter(null)}
+        >
+          <Portrait
+            className={`absolute inset-0 h-full w-full [mask-size:125%] [-webkit-mask-size:125%] ${tone}`}
+            id={character.id}
+          />
+          <span className="relative z-10">
+            <span className="block font-display text-5xl leading-none tracking-wide text-foreground uppercase">
               {character.name}
-            </p>
-            <p className="mt-2 font-mono text-xs tracking-widest text-muted uppercase">
+            </span>
+            <span className="mt-2 block font-mono text-xs tracking-widest text-muted uppercase">
               {character.title}
-            </p>
-            <p className="mt-2 text-sm text-foreground">{character.tagline}</p>
-          </div>
-          <button
-            aria-label={`Clear ${character.name}, ${label}`}
-            className="shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-for"
-            type="button"
-            onClick={() => onCharacter(null)}
-          >
-            <Portrait className={`size-28 ${tone}`} id={character.id} />
-          </button>
-        </div>
+            </span>
+            <span className="mt-2 block text-sm text-foreground">{character.tagline}</span>
+          </span>
+        </button>
       ) : (
-        <p className="font-display text-5xl tracking-wide text-foreground uppercase">
-          Choose {label}
-        </p>
+        <p className="font-mono text-xs tracking-widest text-muted uppercase">Choose {label}</p>
       )}
       <div aria-label={label} className="grid grid-cols-3 gap-2" role="group">
         {characters.map((item) => {
@@ -180,18 +168,25 @@ function SidePanel({
               key={item.id}
               aria-label={taken ? `${item.name}, Already chosen` : undefined}
               aria-pressed={selected}
-              className={`h-auto flex-col whitespace-normal px-2 py-2 ${selected ? tone : ""}`}
+              className={`relative h-40 items-end justify-end overflow-hidden whitespace-normal p-0 ${selected ? tone : "text-muted"}`}
               disabled={taken}
               type="button"
               variant="outline"
               onClick={() => onCharacter(item.id)}
             >
-              <span className="flex w-full items-center justify-between gap-1">
-                <span className="font-display text-lg leading-none">{item.monogram}</span>
+              <Portrait
+                className="pointer-events-none absolute inset-0 h-full w-full [mask-size:145%] [-webkit-mask-size:145%]"
+                id={item.id}
+              />
+              <span className="relative z-10 mt-auto flex w-full items-end justify-between gap-1 bg-surface/80 px-1 py-0.5 text-left text-xs font-normal text-foreground">
+                <span>{item.name}</span>
                 {selected ? <Check /> : null}
               </span>
-              <span className="w-full text-left text-xs font-normal">{item.name}</span>
-              {taken ? <span className="w-full text-left text-xs font-normal">Already chosen</span> : null}
+              {taken ? (
+                <span className="relative z-10 w-full bg-surface/80 px-1 text-left text-xs font-normal text-foreground">
+                  Already chosen
+                </span>
+              ) : null}
             </Button>
           );
         })}
@@ -218,6 +213,27 @@ function SidePanel({
           })}
         </select>
       </div>
+    </article>
+  );
+}
+
+function JudgeCard({ models }: { models: CatalogModel[] }) {
+  return (
+    <article className="flex w-64 flex-col gap-3 border border-border bg-surface p-4 text-foreground">
+      <p className="text-center font-mono text-xs tracking-widest text-muted uppercase">Judge</p>
+      <div className="relative h-56 overflow-hidden">
+        <Portrait
+          className="absolute inset-0 h-full w-full text-foreground"
+          id="nubi"
+        />
+      </div>
+      <div className="text-center">
+        <p className="font-display text-5xl leading-none tracking-wide uppercase">Nubi</p>
+        <p className="mt-2 font-mono text-xs tracking-widest text-muted uppercase">The Weigher</p>
+        <p className="mt-2 text-sm">Still. Exact. Final.</p>
+      </div>
+      <p className="text-center text-sm">{judgeText(models)}</p>
+      <p className="text-center font-mono text-xs tracking-widest text-muted uppercase">3 rounds</p>
     </article>
   );
 }

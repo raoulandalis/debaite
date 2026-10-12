@@ -89,7 +89,7 @@ Fighter names and the “Set the match” heading use Bebas Neue. UI text is Gei
 
 ## Layout
 
-The shell is a header plus one main column. Content has at least 16px of horizontal padding. At 1280px the column is centered and at most 1120px wide. Setup places For, VS, and Against in one row, and stacks them below that width. The first focusable control is a skip link to `#main`.
+The shell is a header plus one main column. Content has at least 16px of horizontal padding. At 1280px the column is centered and at most 1120px wide. Setup places For, VS, and Against in one row, and stacks them below that width. Nubi, the judge, sits in a center card directly under VS. Start debate is centered under the matchup. The first focusable control is a skip link to `#main`.
 
 ## Elevation & Depth
 

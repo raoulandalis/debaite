@@ -12,9 +12,6 @@ const catalog = [
   { name: "llama3.2:latest", parameterBillions: 3.2 },
 ];
 
-const helper =
-  "Enter a topic of at least 8 characters, choose two different characters, and choose two installed debater models.";
-
 function renderForm(
   session: GameSession = initialSession(),
   models = catalog,
@@ -36,14 +33,17 @@ test("lists only the debater roster and keeps start disabled for a short topic",
   renderForm(session);
 
   expect(screen.getByLabelText("Debate topic")).toHaveValue("1234567");
-  expect(screen.getByText(/Yes\/no and "Should" questions work well/)).toBeInTheDocument();
+  expect(screen.getByLabelText("Debate topic")).toHaveAttribute(
+    "placeholder",
+    "e.g. Is a hot dog a sandwich?",
+  );
+  expect(screen.queryByText(/yes\/no|Should/i)).not.toBeInTheDocument();
   expect(screen.getAllByRole("option", { name: "mistral:7b (7.2B)" })).toHaveLength(2);
   expect(screen.getAllByRole("option", { name: "qwen2.5:7b (7.6B)" })).toHaveLength(2);
   expect(screen.getAllByRole("option", { name: "llama3.1:8b (8B)" })).toHaveLength(2);
   expect(screen.queryByRole("option", { name: /llama3\.2/ })).not.toBeInTheDocument();
   expect(screen.getByText(/gemma2:9b \(9\.2B\)/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Start debate" })).toBeDisabled();
-  expect(screen.getByText(helper)).toBeInTheDocument();
   expect(screen.queryByText(/You are Rex/)).not.toBeInTheDocument();
 });
 
@@ -61,7 +61,6 @@ test("enables start for a valid topic, characters, and two installed debaters", 
 
   const start = screen.getByRole("button", { name: "Start debate" });
   expect(start).toBeEnabled();
-  expect(screen.queryByText(helper)).not.toBeInTheDocument();
   fireEvent.click(start);
   expect(onEvent).toHaveBeenCalledWith({ type: "start" });
 });
@@ -71,6 +70,8 @@ test("shows a character tile in each side panel", () => {
 
   expect(screen.getByRole("heading", { name: "Set the match" })).toBeInTheDocument();
   expect(screen.getByText("VS")).toBeInTheDocument();
+  expect(screen.getByText("Nubi")).toBeInTheDocument();
+  expect(screen.getByText("Still. Exact. Final.")).toBeInTheDocument();
   expect(screen.getByText("Choose For")).toBeInTheDocument();
   expect(screen.getByText("Choose Against")).toBeInTheDocument();
   const forSide = within(screen.getByRole("group", { name: "For" }));

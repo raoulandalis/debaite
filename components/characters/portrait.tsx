@@ -5,13 +5,14 @@ const sources = {
   rex: "/characters/rex.png",
   athena: "/characters/athena.png",
   jester: "/characters/jester.png",
+  nubi: "/characters/nubi.png",
 } as const;
 
 export function Portrait({
   id,
   className,
 }: {
-  id: Character["id"];
+  id: Character["id"] | "nubi";
   className?: string;
 }) {
   return (
