@@ -71,14 +71,63 @@ test("an error offers retry and does not show a score or winner", () => {
   expect(screen.queryByText(/winner/i)).not.toBeInTheDocument();
 });
 
-test("six speeches are ready for the judge", () => {
+test("a paused sixth speech offers Judge the debate", () => {
   let session = started();
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < 5; index += 1) {
     session = playbackReducer(session, { type: "turn_succeeded", turn: speech(index) });
   }
-  render(<DebateScreen session={session} onEvent={vi.fn()} />);
+  session = playbackReducer(session, { type: "pause" });
+  session = playbackReducer(session, { type: "turn_succeeded", turn: speech(5) });
+  const onEvent = vi.fn();
+  render(<DebateScreen session={session} onEvent={onEvent} />);
 
   expect(screen.getByText("The debate is ready for the judge.")).toBeInTheDocument();
   expect(screen.queryByText("Current")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Retry turn" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Judge the debate" }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "judge_started" });
+  expect(screen.queryByText("Weighted score")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("This verdict is an AI-generated evaluation, not an objective ruling."),
+  ).not.toBeInTheDocument();
+});
+
+test("judge pending shows the scoring line and no scores", () => {
+  let session = started();
+  for (let index = 0; index < 6; index += 1) {
+    session = playbackReducer(session, { type: "turn_succeeded", turn: speech(index) });
+  }
+  const onEvent = vi.fn();
+  render(<DebateScreen session={session} onEvent={onEvent} />);
+
+  expect(screen.getByText("The judge is scoring the debate.")).toBeInTheDocument();
+  expect(screen.queryByText("Weighted score")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("This verdict is an AI-generated evaluation, not an objective ruling."),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel judging" }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "cancel" });
+  expect(screen.queryByRole("button", { name: "Cancel turn" })).not.toBeInTheDocument();
+});
+
+test("a judging failure keeps the speeches and offers retry", () => {
+  let session = started();
+  for (let index = 0; index < 6; index += 1) {
+    session = playbackReducer(session, { type: "turn_succeeded", turn: speech(index) });
+  }
+  session = playbackReducer(session, {
+    type: "judge_failed",
+    error: { code: "OLLAMA_TIMEOUT", message: "Ollama took too long to respond." },
+  });
+  const onEvent = vi.fn();
+  render(<DebateScreen session={session} onEvent={onEvent} />);
+
+  expect(screen.getAllByText("Speech 1").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Speech 6").length).toBeGreaterThan(0);
+  expect(screen.getByText("Ollama took too long to respond.")).toBeInTheDocument();
+  expect(screen.getByText("Judging failed. You can retry.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Retry judging" }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "retry" });
+  expect(screen.queryByRole("button", { name: "Retry turn" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Weighted score")).not.toBeInTheDocument();
 });

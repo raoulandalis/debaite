@@ -129,14 +129,14 @@ test("turn_failed does not add a turn", () => {
   expect(next.error?.code).toBe("OLLAMA_TIMEOUT");
 });
 
-test("six successes reach awaiting_judge with pending null and phase debate", () => {
+test("six successes while running set the judge pending and stay on debate", () => {
   let state = apply(readySession(), { type: "start" });
   for (let index = 0; index < 6; index += 1) {
     state = apply(state, { type: "turn_succeeded", turn: speech(index) });
   }
   expect(state.debate?.status).toBe("awaiting_judge");
   expect(state.debate?.turns).toHaveLength(6);
-  expect(state.pending).toBeNull();
+  expect(state.pending).toEqual({ kind: "judge" });
   expect(state.phase).toBe("debate");
   expect(state.judgment).toBeNull();
 });

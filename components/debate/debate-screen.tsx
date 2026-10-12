@@ -26,6 +26,7 @@ export function DebateScreen({
 
   const active = activeTurn(session, debate);
   const awaitingJudge = debate.status === "awaiting_judge";
+  const judging = session.pending?.kind === "judge";
   const activeSpeaker = active?.speaker ?? "a";
 
   return (
@@ -66,12 +67,27 @@ export function DebateScreen({
             Resume
           </Button>
         ) : null}
-        {session.pending !== null ? (
+        {awaitingJudge && session.pending === null && session.error === null ? (
+          <Button type="button" onClick={() => onEvent({ type: "judge_started" })}>
+            Judge the debate
+          </Button>
+        ) : null}
+        {judging ? (
+          <Button type="button" variant="outline" onClick={() => onEvent({ type: "cancel" })}>
+            Cancel judging
+          </Button>
+        ) : null}
+        {session.pending?.kind === "turn" ? (
           <Button type="button" variant="outline" onClick={() => onEvent({ type: "cancel" })}>
             Cancel turn
           </Button>
         ) : null}
-        {session.error !== null ? (
+        {session.error !== null && awaitingJudge ? (
+          <Button type="button" onClick={() => onEvent({ type: "retry" })}>
+            Retry judging
+          </Button>
+        ) : null}
+        {session.error !== null && !awaitingJudge ? (
           <Button type="button" onClick={() => onEvent({ type: "retry" })}>
             Retry turn
           </Button>
@@ -82,10 +98,21 @@ export function DebateScreen({
 }
 
 function StatusLine({ session, debate }: { session: GameSession; debate: DebateState }) {
+  if (session.pending?.kind === "judge") {
+    return <p aria-live="polite">The judge is scoring the debate.</p>;
+  }
   if (debate.status === "awaiting_judge") {
+    if (session.error !== null) {
+      return (
+        <div>
+          <p aria-live="polite">Judging failed. You can retry.</p>
+          <p>{session.error.message}</p>
+        </div>
+      );
+    }
     return <p>The debate is ready for the judge.</p>;
   }
-  if (session.pending !== null) {
+  if (session.pending?.kind === "turn") {
     const name = speakerName(debate, session.pending.speaker);
     return (
       <p aria-live="polite">
@@ -143,7 +170,7 @@ function activeTurn(
   session: GameSession,
   debate: DebateState,
 ): { round: RoundId; speaker: SpeakerSlot } | null {
-  if (session.pending !== null) {
+  if (session.pending?.kind === "turn") {
     return session.pending;
   }
   return getExpectedTurn(debate);

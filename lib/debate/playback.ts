@@ -1,8 +1,12 @@
-import { appendTurn, createDebate, getExpectedTurn } from "@/lib/debate/engine";
+import { appendTurn, createDebate, getExpectedTurn, markJudged } from "@/lib/debate/engine";
 import { sameSizeBand } from "@/lib/debate/models";
 import { isDebaterModel, JUDGE_MODEL } from "@/lib/debate/roster";
 import type { DebateState, RoundId, SpeakerSlot, Turn } from "@/lib/debate/types";
 import { validateTopic } from "@/lib/debate/validation";
+import { validateClientJudgment } from "@/lib/judge/client-validate";
+import type { Judgment } from "@/lib/judge/schema";
+
+const UNVERIFIED_JUDGMENT = "The judge response could not be verified. You can retry.";
 
 export type GameSession = {
   phase: "setup" | "debate" | "results";
@@ -13,9 +17,9 @@ export type GameSession = {
   debaterBModel: string | null;
   judgeModel: string | null;
   debate: DebateState | null;
-  judgment: null;
+  judgment: Judgment | null;
   playback: "running" | "paused";
-  pending: null | { kind: "turn"; round: RoundId; speaker: SpeakerSlot };
+  pending: null | { kind: "turn"; round: RoundId; speaker: SpeakerSlot } | { kind: "judge" };
   error: null | { code: string; message: string };
 };
 
@@ -35,7 +39,12 @@ export type PlaybackEvent =
   | { type: "pause" }
   | { type: "cancel" }
   | { type: "resume" }
-  | { type: "retry" };
+  | { type: "retry" }
+  | { type: "judge_started" }
+  | { type: "judge_succeeded"; body: unknown }
+  | { type: "judge_failed"; error: { code: string; message: string } }
+  | { type: "play_again" }
+  | { type: "new_debate" };
 
 type CatalogModel = { name: string; parameterBillions: number | null };
 
@@ -114,6 +123,16 @@ export function playbackReducer(state: GameSession, event: PlaybackEvent): GameS
     case "resume":
     case "retry":
       return requestExpected(state);
+    case "judge_started":
+      return startJudge(state);
+    case "judge_succeeded":
+      return succeedJudge(state, event.body);
+    case "judge_failed":
+      return failJudge(state, event.error);
+    case "play_again":
+      return playAgain(state);
+    case "new_debate":
+      return newDebate(state);
     default:
       return state;
   }
@@ -185,7 +204,13 @@ function succeedTurn(state: GameSession, turn: Turn): GameSession {
     return state;
   }
   const debate = appended.value;
-  if (debate.status === "awaiting_judge" || state.playback !== "running") {
+  if (debate.status === "awaiting_judge") {
+    if (state.playback === "running") {
+      return { ...state, debate, error: null, pending: { kind: "judge" } };
+    }
+    return { ...state, debate, error: null, pending: null };
+  }
+  if (state.playback !== "running") {
     return { ...state, debate, error: null, pending: null };
   }
   const expected = getExpectedTurn(debate);
@@ -206,13 +231,112 @@ function requestExpected(state: GameSession): GameSession {
   }
   const expected = getExpectedTurn(state.debate);
   if (expected === null) {
-    return state;
+    return startJudge(state);
   }
   return {
     ...state,
     playback: "running",
     error: null,
     pending: { kind: "turn", round: expected.round, speaker: expected.speaker },
+  };
+}
+
+function startJudge(state: GameSession): GameSession {
+  if (
+    state.pending !== null ||
+    state.debate === null ||
+    state.debate.status !== "awaiting_judge" ||
+    state.judgment !== null
+  ) {
+    return state;
+  }
+  return {
+    ...state,
+    playback: "running",
+    error: null,
+    pending: { kind: "judge" },
+  };
+}
+
+function succeedJudge(state: GameSession, body: unknown): GameSession {
+  if (state.pending?.kind !== "judge" || state.debate === null) {
+    return state;
+  }
+  const validated = validateClientJudgment(body);
+  if (!validated.ok) {
+    return failJudge(state, {
+      code: "INVALID_MODEL_OUTPUT",
+      message: UNVERIFIED_JUDGMENT,
+    });
+  }
+  const marked = markJudged(state.debate);
+  if (!marked.ok) {
+    return failJudge(state, { code: marked.code, message: marked.message });
+  }
+  return {
+    ...state,
+    phase: "results",
+    debate: marked.value,
+    judgment: validated.judgment,
+    error: null,
+    pending: null,
+  };
+}
+
+function failJudge(
+  state: GameSession,
+  error: { code: string; message: string },
+): GameSession {
+  return {
+    ...state,
+    phase: "debate",
+    judgment: null,
+    pending: null,
+    playback: "paused",
+    error,
+  };
+}
+
+function playAgain(state: GameSession): GameSession {
+  if (state.phase !== "results" || state.debate === null) {
+    return state;
+  }
+  const created = createDebate({
+    topic: state.debate.topic,
+    debaterAId: state.debate.debaterAId,
+    debaterBId: state.debate.debaterBId,
+    debaterAModel: state.debate.debaterAModel,
+    debaterBModel: state.debate.debaterBModel,
+    judgeModel: JUDGE_MODEL,
+  });
+  if (!created.ok) {
+    return state;
+  }
+  return {
+    ...state,
+    phase: "debate",
+    judgeModel: JUDGE_MODEL,
+    debate: created.value,
+    judgment: null,
+    playback: "running",
+    pending: { kind: "turn", round: "opening", speaker: "a" },
+    error: null,
+  };
+}
+
+function newDebate(state: GameSession): GameSession {
+  if (state.phase !== "results") {
+    return state;
+  }
+  return {
+    ...state,
+    phase: "setup",
+    debate: null,
+    judgment: null,
+    pending: null,
+    error: null,
+    playback: "paused",
+    judgeModel: JUDGE_MODEL,
   };
 }
 

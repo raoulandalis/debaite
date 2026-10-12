@@ -2,10 +2,14 @@
 
 import { useEffect, useReducer, useState } from "react";
 import { DebateScreen } from "@/components/debate/debate-screen";
+import { ResultsScreen } from "@/components/results/results-screen";
 import { ModelStatus } from "@/components/setup/model-status";
 import { SetupForm } from "@/components/setup/setup-form";
+import { getCharacter } from "@/lib/characters";
 import { Badge } from "@/components/ui/badge";
 import { initialSession, playbackReducer } from "@/lib/debate";
+import type { GameSession, PlaybackEvent } from "@/lib/debate";
+import { requestJudge } from "@/lib/debate/judge-client";
 import { requestTurn } from "@/lib/debate/turn-client";
 
 const rounds = ["Opening", "Rebuttal", "Closing"] as const;
@@ -86,6 +90,48 @@ export function Game() {
     };
   }, [session.pending, session.debate]);
 
+  useEffect(() => {
+    const pending = session.pending;
+    const debate = session.debate;
+    if (pending?.kind !== "judge" || debate === null) {
+      return;
+    }
+
+    const controller = new AbortController();
+    let ignore = false;
+
+    void (async () => {
+      const result = await requestJudge(
+        {
+          topic: debate.topic,
+          debaterAId: debate.debaterAId,
+          debaterBId: debate.debaterBId,
+          debaterAModel: debate.debaterAModel,
+          debaterBModel: debate.debaterBModel,
+          judgeModel: debate.judgeModel,
+          transcript: debate.turns,
+        },
+        controller.signal,
+      );
+      if (ignore || (!result.ok && "aborted" in result)) {
+        return;
+      }
+      if (!result.ok) {
+        dispatch({
+          type: "judge_failed",
+          error: { code: result.code, message: result.message },
+        });
+        return;
+      }
+      dispatch({ type: "judge_succeeded", body: result.body });
+    })();
+
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [session.pending, session.debate]);
+
   return (
     <>
       <a className="skip-link" href="#main">
@@ -115,11 +161,41 @@ export function Game() {
             <SetupForm models={models} session={session} onEvent={dispatch} />
           </>
         ) : (
-          <DebateScreen session={session} onEvent={dispatch} />
+          <DebatePhase session={session} onEvent={dispatch} />
         )}
       </main>
     </>
   );
+}
+
+function DebatePhase({
+  session,
+  onEvent,
+}: {
+  session: GameSession;
+  onEvent: (event: PlaybackEvent) => void;
+}) {
+  const debate = session.debate;
+  const judgment = session.judgment;
+  if (session.phase === "results" && debate !== null && judgment !== null) {
+    const debaterA = getCharacter(debate.debaterAId);
+    const debaterB = getCharacter(debate.debaterBId);
+    if (debaterA !== null && debaterB !== null) {
+      return (
+        <ResultsScreen
+          debaterA={debaterA}
+          debaterAModel={debate.debaterAModel}
+          debaterB={debaterB}
+          debaterBModel={debate.debaterBModel}
+          judgeModel={debate.judgeModel}
+          judgment={judgment}
+          turns={debate.turns}
+          onEvent={onEvent}
+        />
+      );
+    }
+  }
+  return <DebateScreen session={session} onEvent={onEvent} />;
 }
 
 function readModels(body: unknown): CatalogModel[] {
