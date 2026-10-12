@@ -44,7 +44,8 @@ export type PlaybackEvent =
   | { type: "judge_succeeded"; body: unknown }
   | { type: "judge_failed"; error: { code: string; message: string } }
   | { type: "play_again" }
-  | { type: "new_debate" };
+  | { type: "new_debate" }
+  | { type: "home" };
 
 type CatalogModel = { name: string; parameterBillions: number | null };
 
@@ -133,6 +134,8 @@ export function playbackReducer(state: GameSession, event: PlaybackEvent): GameS
       return playAgain(state);
     case "new_debate":
       return newDebate(state);
+    case "home":
+      return goHome(state);
     default:
       return state;
   }
@@ -308,6 +311,22 @@ function playAgain(state: GameSession): GameSession {
     playback: "running",
     pending: { kind: "turn", round: "opening", speaker: "a" },
     error: null,
+  };
+}
+
+function goHome(state: GameSession): GameSession {
+  if (state.phase === "setup") {
+    return state;
+  }
+  return {
+    ...state,
+    phase: "setup",
+    debate: null,
+    judgment: null,
+    pending: null,
+    error: null,
+    playback: "paused",
+    judgeModel: JUDGE_MODEL,
   };
 }
 

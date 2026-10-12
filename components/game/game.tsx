@@ -6,17 +6,14 @@ import { ResultsScreen } from "@/components/results/results-screen";
 import { ModelStatus } from "@/components/setup/model-status";
 import { SetupForm } from "@/components/setup/setup-form";
 import { getCharacter } from "@/lib/characters";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { initialSession, playbackReducer } from "@/lib/debate";
 import type { GameSession, PlaybackEvent } from "@/lib/debate";
 import { requestJudge } from "@/lib/debate/judge-client";
 import { requestTurn } from "@/lib/debate/turn-client";
 
-const rounds = [
-  { id: "01", label: "Opening" },
-  { id: "02", label: "Rebuttal" },
-  { id: "03", label: "Closing" },
-] as const;
+const howToPlay =
+  "Write a topic. Pick two characters and two models. They argue for three rounds, then Nubi judges.";
 
 type CatalogModel = { name: string; parameterBillions: number | null };
 
@@ -143,24 +140,19 @@ export function Game() {
       </a>
       <header className="border-b border-border bg-background text-foreground">
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-baseline gap-3">
-            <h1 className="font-display text-4xl tracking-wide">DebAIte</h1>
-            <p className="font-mono text-xs tracking-widest text-muted uppercase">The arena</p>
-          </div>
+          <h1 aria-label="DebAIte" className="font-display text-4xl tracking-wide uppercase">
+            <button
+              aria-label="DebAIte"
+              className="cursor-pointer border-0 bg-transparent p-0 font-display text-4xl tracking-wide uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-for"
+              type="button"
+              onClick={() => dispatch({ type: "home" })}
+            >
+              Deb<span className="mr-[0.18em] text-foreground/30 italic">AI</span>te
+            </button>
+          </h1>
           <div className="flex flex-wrap items-center gap-4">
             <ModelStatus />
-            <ul aria-label="Match shape" className="flex flex-wrap gap-2">
-              {rounds.map((round) => (
-                <li key={round.id}>
-                  <Badge
-                    className="rounded-sm border-border bg-transparent font-mono text-xs tracking-wide text-muted uppercase"
-                    variant="outline"
-                  >
-                    {round.id} {round.label}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
+            <HowToPlay />
           </div>
         </div>
       </header>
@@ -172,6 +164,37 @@ export function Game() {
         )}
       </main>
     </>
+  );
+}
+
+function HowToPlay() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <Button
+        aria-controls="how-to-play"
+        aria-expanded={open}
+        aria-label="How to play"
+        size="icon"
+        type="button"
+        variant="outline"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 16 16">
+          <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M8 7.2V11" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="8" cy="5" r="0.8" fill="currentColor" />
+        </svg>
+      </Button>
+      {open ? (
+        <p
+          className="absolute right-0 z-10 mt-2 w-64 border border-border bg-surface p-3 text-left text-sm text-foreground"
+          id="how-to-play"
+        >
+          {howToPlay}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -190,6 +213,7 @@ function DebatePhase({
     if (debaterA !== null && debaterB !== null) {
       return (
         <ResultsScreen
+          topic={debate.topic}
           debaterA={debaterA}
           debaterAModel={debate.debaterAModel}
           debaterB={debaterB}

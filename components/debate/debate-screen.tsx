@@ -1,6 +1,7 @@
 "use client";
 
 import { getCharacter } from "@/lib/characters";
+import type { Character } from "@/lib/characters";
 import { getExpectedTurn } from "@/lib/debate";
 import type { DebateState, GameSession, PlaybackEvent, RoundId, SpeakerSlot } from "@/lib/debate";
 import { Button } from "@/components/ui/button";
@@ -27,36 +28,47 @@ export function DebateScreen({
   const active = activeTurn(session, debate);
   const awaitingJudge = debate.status === "awaiting_judge";
   const judging = session.pending?.kind === "judge";
-  const activeSpeaker = active?.speaker ?? "a";
+  const debaterA = getCharacter(debate.debaterAId);
+  const debaterB = getCharacter(debate.debaterBId);
+  if (debaterA === null || debaterB === null) {
+    return null;
+  }
 
   return (
-    <section className="mt-6 flex min-w-0 flex-col gap-4">
-      <ol aria-label="Rounds" className="flex flex-wrap gap-3 font-mono text-xs tracking-widest uppercase">
-        {rounds.map((round, index) => (
-          <li key={round.id}>
-            <span className="text-muted">0{index + 1}</span> <span>{round.label}</span>
-            {active?.round === round.id && !awaitingJudge ? <span>Current</span> : null}
-          </li>
-        ))}
+    <section className="mt-6 flex min-w-0 flex-col gap-8">
+      <header className="flex flex-col items-center gap-3 text-center">
+        <h2 className="font-display text-4xl tracking-wide text-foreground uppercase sm:text-5xl">
+          {debate.topic}
+        </h2>
+        <p className="flex flex-wrap items-center justify-center gap-3 font-mono text-xs tracking-widest uppercase">
+          <span className="text-for">
+            {debaterA.name} <span aria-hidden="true">/</span> For
+          </span>
+          <span className="font-display text-2xl tracking-wide text-foreground">VS</span>
+          <span className="text-against">
+            {debaterB.name} <span aria-hidden="true">/</span> Against
+          </span>
+        </p>
+      </header>
+      <ol aria-label="Rounds" className="flex flex-wrap justify-center gap-8 font-mono text-xs tracking-widest uppercase">
+        {rounds.map((round, index) => {
+          const current = active?.round === round.id && !awaitingJudge;
+          return (
+            <li key={round.id} className="flex flex-col items-center gap-1">
+              <span className={current ? "border-b border-foreground pb-1 text-foreground" : "text-muted"}>
+                <span>0{index + 1}</span> <span>{round.label}</span>
+              </span>
+              {current ? <span>Current</span> : null}
+            </li>
+          );
+        })}
       </ol>
-      <StatusLine session={session} debate={debate} />
-      <div className="flex min-w-0 flex-col gap-4 lg:grid lg:grid-cols-2">
-        <div className="order-first min-w-0 lg:hidden">
-          <h2 className="text-sm font-medium">Last argument</h2>
-          <p>{lastArgument(debate, activeSpeaker) ?? "No argument yet."}</p>
-        </div>
-        <SpeakerColumn
-          debate={debate}
-          speaker="a"
-          className={activeSpeaker === "b" ? "order-2 lg:order-1" : "order-1"}
-        />
-        <SpeakerColumn
-          debate={debate}
-          speaker="b"
-          className={activeSpeaker === "b" ? "order-1 lg:order-2" : "order-2"}
-        />
+      <div className="flex min-w-0 flex-col gap-6">
+        <Thread debate={debate} debaterA={debaterA} debaterB={debaterB} />
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <StatusLine session={session} debate={debate} />
+        <div className="flex flex-wrap justify-center gap-2">
         {session.playback === "running" && !awaitingJudge ? (
           <Button type="button" variant="outline" onClick={() => onEvent({ type: "pause" })}>
             Pause
@@ -96,14 +108,29 @@ export function DebateScreen({
             Retry turn
           </Button>
         ) : null}
+        </div>
       </div>
     </section>
   );
 }
 
+function Spinner() {
+  return (
+    <svg aria-hidden="true" className="size-4 motion-safe:animate-spin" fill="none" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 function StatusLine({ session, debate }: { session: GameSession; debate: DebateState }) {
   if (session.pending?.kind === "judge") {
-    return <p aria-live="polite">The judge is scoring the debate.</p>;
+    return (
+      <p aria-live="polite" className="flex items-center justify-center gap-2">
+        <Spinner />
+        The judge is scoring the debate.
+      </p>
+    );
   }
   if (debate.status === "awaiting_judge") {
     if (session.error !== null) {
@@ -124,7 +151,8 @@ function StatusLine({ session, debate }: { session: GameSession; debate: DebateS
   if (session.pending?.kind === "turn") {
     const name = speakerName(debate, session.pending.speaker);
     return (
-      <p aria-live="polite">
+      <p aria-live="polite" className="flex items-center justify-center gap-2">
+        <Spinner />
         {name} is making the {session.pending.round} argument.
       </p>
     );
@@ -146,35 +174,59 @@ function StatusLine({ session, debate }: { session: GameSession; debate: DebateS
   return null;
 }
 
-function SpeakerColumn({
+function Thread({
   debate,
-  speaker,
-  className,
+  debaterA,
+  debaterB,
 }: {
   debate: DebateState;
-  speaker: SpeakerSlot;
-  className: string;
+  debaterA: Character;
+  debaterB: Character;
 }) {
-  const character = getCharacter(speaker === "a" ? debate.debaterAId : debate.debaterBId);
-  const turns = debate.turns.filter((turn) => turn.speaker === speaker);
-  if (character === null) {
-    return null;
-  }
   return (
-    <div className={`flex min-w-0 flex-col gap-3 ${className}`}>
-      {turns.map((turn) => (
-        <SpeechCard
-          key={`${turn.round}-${turn.speaker}`}
-          characterId={character.id}
-          model={speaker === "a" ? debate.debaterAModel : debate.debaterBModel}
-          name={character.name}
-          round={turn.round}
-          side={speaker === "a" ? "For" : "Against"}
-          text={turn.text}
-        />
-      ))}
+    <>
+      {debate.turns.map((turn, index) => {
+        const affirmative = turn.speaker === "a";
+        const character = affirmative ? debaterA : debaterB;
+        const divider =
+          index > 0 && debate.turns[index - 1]?.round === turn.round ? null : (
+            <RoundDivider
+              index={rounds.findIndex((round) => round.id === turn.round)}
+              label={roundLabel(turn.round)}
+            />
+          );
+        return (
+          <div key={`${turn.round}-${turn.speaker}`} className="flex flex-col gap-6">
+            {divider}
+            <SpeechCard
+              characterId={character.id}
+              model={affirmative ? debate.debaterAModel : debate.debaterBModel}
+              name={character.name}
+              round={turn.round}
+              side={affirmative ? "For" : "Against"}
+              text={turn.text}
+            />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function RoundDivider({ index, label }: { index: number; label: string }) {
+  return (
+    <div className="flex items-center gap-3 font-mono text-xs tracking-widest text-muted uppercase">
+      <span className="h-px flex-1 bg-border" />
+      <span>
+        0{index + 1} / {label}
+      </span>
+      <span className="h-px flex-1 bg-border" />
     </div>
   );
+}
+
+function roundLabel(round: RoundId): string {
+  return rounds.find((item) => item.id === round)?.label ?? round;
 }
 
 function activeTurn(
@@ -207,9 +259,4 @@ function readyLine(debate: DebateState): string {
 function speakerName(debate: DebateState, speaker: SpeakerSlot): string {
   const character = getCharacter(speaker === "a" ? debate.debaterAId : debate.debaterBId);
   return character?.name ?? "The debater";
-}
-
-function lastArgument(debate: DebateState, activeSpeaker: SpeakerSlot): string | null {
-  const opponent = [...debate.turns].reverse().find((turn) => turn.speaker !== activeSpeaker);
-  return opponent?.text ?? null;
 }

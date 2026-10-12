@@ -40,11 +40,28 @@ test("a stored opening shows the speaker, model, side, and round", () => {
   });
   render(<DebateScreen session={session} onEvent={vi.fn()} />);
 
-  expect(screen.getByText("Rex")).toBeInTheDocument();
+  expect(screen.getAllByText("Rex").length).toBeGreaterThan(0);
   expect(screen.getByText("mistral:7b")).toBeInTheDocument();
-  expect(screen.getByText("For")).toBeInTheDocument();
+  expect(screen.getAllByText("For").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Opening").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Schools need teachers.").length).toBeGreaterThan(0);
+});
+
+test("speeches stay in spoken order, For then Against", () => {
+  let session = playbackReducer(playbackReducer(started(), { type: "pause" }), {
+    type: "turn_succeeded",
+    turn: speech(0, "Schools need teachers."),
+  });
+  session = playbackReducer(session, { type: "resume" });
+  session = playbackReducer(session, {
+    type: "turn_succeeded",
+    turn: speech(1, "Teachers adapt."),
+  });
+  render(<DebateScreen session={session} onEvent={vi.fn()} />);
+
+  const opening = screen.getByText("Schools need teachers.");
+  const reply = screen.getByText("Teachers adapt.");
+  expect(opening.compareDocumentPosition(reply) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 test("a finished speech waits until Next argument", () => {

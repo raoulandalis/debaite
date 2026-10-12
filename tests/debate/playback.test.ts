@@ -46,6 +46,16 @@ function apply(state: GameSession, event: PlaybackEvent): GameSession {
   return playbackReducer(state, event);
 }
 
+test("the wordmark returns a live debate to setup and keeps the draft", () => {
+  const started = apply(readySession(), { type: "start" });
+  const home = apply(started, { type: "home" });
+  expect(home.phase).toBe("setup");
+  expect(home.debate).toBeNull();
+  expect(home.pending).toBeNull();
+  expect(home.topicDraft).toBe("Should AI replace human teachers?");
+  expect(home.debaterAId).toBe("rex");
+});
+
 test("start with Rex versus Athena sets pending to opening A", () => {
   const next = apply(readySession(), { type: "start" });
   expect(next.phase).toBe("debate");
