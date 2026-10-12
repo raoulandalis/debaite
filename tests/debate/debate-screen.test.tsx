@@ -47,12 +47,28 @@ test("a stored opening shows the speaker, model, side, and round", () => {
   expect(screen.getAllByText("Schools need teachers.").length).toBeGreaterThan(0);
 });
 
+test("a finished speech waits until Next argument", () => {
+  const session = playbackReducer(started(), {
+    type: "turn_succeeded",
+    turn: speech(0, "Schools need teachers."),
+  });
+  const onEvent = vi.fn();
+  render(<DebateScreen session={session} onEvent={onEvent} />);
+
+  expect(screen.getByText("Rex's opening argument is ready.")).toBeInTheDocument();
+  expect(screen.queryByText("Athena is making the opening argument.")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Next argument" }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "resume" });
+});
+
 test("pending opening B announces Athena", () => {
   let session = started();
   session = playbackReducer(session, { type: "turn_succeeded", turn: speech(0) });
+  session = playbackReducer(session, { type: "resume" });
   render(<DebateScreen session={session} onEvent={vi.fn()} />);
 
   expect(screen.getByText("Athena is making the opening argument.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Next argument" })).not.toBeInTheDocument();
 });
 
 test("an error offers retry and does not show a score or winner", () => {
@@ -75,12 +91,14 @@ test("a paused sixth speech offers Judge the debate", () => {
   let session = started();
   for (let index = 0; index < 5; index += 1) {
     session = playbackReducer(session, { type: "turn_succeeded", turn: speech(index) });
+    session = playbackReducer(session, { type: "resume" });
   }
   session = playbackReducer(session, { type: "pause" });
   session = playbackReducer(session, { type: "turn_succeeded", turn: speech(5) });
   const onEvent = vi.fn();
   render(<DebateScreen session={session} onEvent={onEvent} />);
 
+  expect(screen.getByText("Athena's closing argument is ready.")).toBeInTheDocument();
   expect(screen.getByText("The debate is ready for the judge.")).toBeInTheDocument();
   expect(screen.queryByText("Current")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Retry turn" })).not.toBeInTheDocument();
@@ -95,8 +113,12 @@ test("a paused sixth speech offers Judge the debate", () => {
 test("judge pending shows the scoring line and no scores", () => {
   let session = started();
   for (let index = 0; index < 6; index += 1) {
+    if (index > 0) {
+      session = playbackReducer(session, { type: "resume" });
+    }
     session = playbackReducer(session, { type: "turn_succeeded", turn: speech(index) });
   }
+  session = playbackReducer(session, { type: "judge_started" });
   const onEvent = vi.fn();
   render(<DebateScreen session={session} onEvent={onEvent} />);
 
@@ -113,8 +135,12 @@ test("judge pending shows the scoring line and no scores", () => {
 test("a judging failure keeps the speeches and offers retry", () => {
   let session = started();
   for (let index = 0; index < 6; index += 1) {
+    if (index > 0) {
+      session = playbackReducer(session, { type: "resume" });
+    }
     session = playbackReducer(session, { type: "turn_succeeded", turn: speech(index) });
   }
+  session = playbackReducer(session, { type: "judge_started" });
   session = playbackReducer(session, {
     type: "judge_failed",
     error: { code: "OLLAMA_TIMEOUT", message: "Ollama took too long to respond." },

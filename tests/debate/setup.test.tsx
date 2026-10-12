@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import { SetupForm } from "@/components/setup/setup-form";
 import { initialSession, playbackReducer } from "@/lib/debate";
@@ -66,15 +66,49 @@ test("enables start for a valid topic, characters, and two installed debaters", 
   expect(onEvent).toHaveBeenCalledWith({ type: "start" });
 });
 
-test("disables a character or model that the other slot already chose", () => {
+test("shows a character tile in each side panel", () => {
+  renderForm();
+
+  expect(screen.getByRole("heading", { name: "Set the match" })).toBeInTheDocument();
+  expect(screen.getByText("VS")).toBeInTheDocument();
+  expect(screen.getByText("Choose For")).toBeInTheDocument();
+  expect(screen.getByText("Choose Against")).toBeInTheDocument();
+  const forSide = within(screen.getByRole("group", { name: "For" }));
+  const againstSide = within(screen.getByRole("group", { name: "Against" }));
+  expect(forSide.getAllByRole("button")).toHaveLength(3);
+  expect(againstSide.getAllByRole("button")).toHaveLength(3);
+  expect(forSide.getByRole("button", { name: /Rex/ })).toHaveTextContent("Rex");
+  expect(forSide.getByRole("button", { name: /Athena/ })).toHaveTextContent("Athena");
+  expect(againstSide.getByRole("button", { name: /Jester/ })).toHaveTextContent("Jester");
+});
+
+test("assigns a character from the side it was clicked in", () => {
+  const onEvent = renderForm();
+  const forSide = within(screen.getByRole("group", { name: "For" }));
+  const againstSide = within(screen.getByRole("group", { name: "Against" }));
+
+  fireEvent.click(forSide.getByRole("button", { name: /Rex/ }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "edit_setup", patch: { debaterAId: "rex" } });
+
+  fireEvent.click(againstSide.getByRole("button", { name: /Athena/ }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "edit_setup", patch: { debaterBId: "athena" } });
+});
+
+test("a character chosen on one side is disabled on the other", () => {
   let session = initialSession();
   session = choose(session, { type: "edit_setup", patch: { debaterAId: "rex" } });
   session = choose(session, { type: "edit_setup", patch: { debaterAModel: "mistral:7b" } });
-  renderForm(session);
+  const onEvent = renderForm(session);
+  const forSide = within(screen.getByRole("group", { name: "For" }));
+  const againstSide = within(screen.getByRole("group", { name: "Against" }));
 
-  expect(screen.getByRole("button", { name: "Rex, Already chosen" })).toBeDisabled();
-  expect(screen.getAllByText("Selected").length).toBeGreaterThan(0);
+  expect(forSide.getByRole("button", { name: /Rex/ })).toHaveAttribute("aria-pressed", "true");
+  expect(againstSide.getByRole("button", { name: "Rex, Already chosen" })).toBeDisabled();
+  expect(screen.getByText("Sharp. Fearless. Direct.")).toBeInTheDocument();
+  expect(screen.queryByText("Selected")).not.toBeInTheDocument();
   expect(screen.getByRole("option", { name: /mistral:7b \(7\.2B\), Already chosen/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Clear Rex, For" }));
+  expect(onEvent).toHaveBeenCalledWith({ type: "edit_setup", patch: { debaterAId: null } });
 });
 
 test("keeps start disabled when a chosen debater or the judge is not installed", () => {

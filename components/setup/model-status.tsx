@@ -54,7 +54,14 @@ export function ModelStatus() {
     status === "ready" ? "text-success" : status === "checking" ? undefined : "text-danger";
 
   return (
-    <p aria-live="polite" className={tone} role="status">
+    <p
+      aria-live="polite"
+      className={`flex items-center gap-2 font-mono text-xs tracking-widest uppercase ${tone ?? ""}`}
+      role="status"
+    >
+      {status === "ready" ? (
+        <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-success" />
+      ) : null}
       {text}
     </p>
   );

@@ -1,8 +1,5 @@
-const borders = {
-  rex: "border-rex",
-  athena: "border-athena",
-  jester: "border-jester",
-} as const;
+import type { Character } from "@/lib/characters";
+import { Portrait } from "@/components/characters/portrait";
 
 const roundNames = {
   opening: "Opening",
@@ -12,37 +9,32 @@ const roundNames = {
 
 export function SpeechCard({
   name,
-  monogram,
-  accent,
+  characterId,
   model,
   side,
   round,
   text,
 }: {
   name: string;
-  monogram: string;
-  accent: keyof typeof borders;
+  characterId: Character["id"];
   model: string;
   side: "For" | "Against";
   round: keyof typeof roundNames;
   text: string;
 }) {
+  const tone = side === "For" ? "border-for text-for" : "border-against text-against";
   return (
     <article
-      className={`min-w-0 rounded-sm border-2 bg-surface-raised p-4 motion-safe:animate-[speech-in_200ms_ease-out] ${borders[accent]}`}
+      className={`min-w-0 border-2 bg-surface-raised p-4 motion-safe:animate-[speech-in_200ms_ease-out] ${tone}`}
     >
       <div className="flex items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-current text-sm font-medium"
-        >
-          {monogram}
-        </span>
-        <p className="font-medium">
-          {name} <span>{model}</span> <span>{side}</span> <span>{roundNames[round]}</span>
+        <Portrait className="size-14 shrink-0" id={characterId} />
+        <p className="font-medium text-foreground">
+          <span className="font-display text-2xl tracking-wide uppercase">{name}</span>{" "}
+          <span>{model}</span> <span>{side}</span> <span>{roundNames[round]}</span>
         </p>
       </div>
-      <p className="mt-3 whitespace-pre-wrap">{text}</p>
+      <p className="mt-3 whitespace-pre-wrap text-foreground">{text}</p>
     </article>
   );
 }

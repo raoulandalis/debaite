@@ -4,6 +4,7 @@ export type Character = {
   id: "rex" | "athena" | "jester";
   name: string;
   title: string;
+  tagline: string;
   summary: string;
   accentToken: "rex" | "athena" | "jester";
   monogram: "R" | "A" | "J";

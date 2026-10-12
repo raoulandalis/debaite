@@ -1,27 +1,29 @@
 ---
 name: DebAIte
-description: Application shell for a local AI debate game, set in a ballot theme.
+description: Application shell for a local AI debate game, set in a dark arena theme.
 colors:
-  background: "#d5dee8"
-  surface: "#eef3f8"
-  surface-raised: "#f7f9fb"
-  foreground: "#1a2330"
-  muted: "#3e4d61"
-  border: "#b3c0cf"
-  header: "#173556"
-  header-foreground: "#f4f7fb"
-  danger: "#9b2c2c"
-  success: "#1d6b45"
-  rex: "#8a3d16"
-  athena: "#1f4f86"
-  jester: "#7a5b10"
+  background: "#0b1014"
+  surface: "#141b22"
+  surface-raised: "#1c2630"
+  foreground: "#f3f7f8"
+  muted: "#b7c5d0"
+  border: "#31404c"
+  header: "#0b1014"
+  header-foreground: "#f3f7f8"
+  for: "#3ee0d0"
+  against: "#e88972"
+  danger: "#ffb4b4"
+  success: "#8ed4ae"
+  rex: "#3ee0d0"
+  athena: "#b7c5d0"
+  jester: "#e88972"
 typography:
   headline:
-    fontFamily: "Geist, sans-serif"
-    fontSize: "clamp(1.75rem, 3vw, 2.25rem)"
-    fontWeight: 600
-    lineHeight: 1.15
-    letterSpacing: "-0.02em"
+    fontFamily: "Bebas Neue, sans-serif"
+    fontSize: "clamp(2.5rem, 6vw, 3.75rem)"
+    fontWeight: 400
+    lineHeight: 0.9
+    letterSpacing: "0.02em"
   body:
     fontFamily: "Geist, sans-serif"
     fontSize: "1rem"
@@ -32,7 +34,7 @@ typography:
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.2
-    letterSpacing: "0.04em"
+    letterSpacing: "0.08em"
 rounded:
   sm: "2px"
   md: "4px"
@@ -41,12 +43,12 @@ spacing:
   stack: "16px"
 components:
   button-primary:
-    backgroundColor: "{colors.header}"
-    textColor: "{colors.header-foreground}"
+    backgroundColor: "{colors.for}"
+    textColor: "{colors.background}"
     rounded: "{rounded.sm}"
     padding: "8px 14px"
   button-primary-disabled:
-    backgroundColor: "{colors.border}"
+    backgroundColor: "{colors.surface-raised}"
     textColor: "{colors.muted}"
     rounded: "{rounded.sm}"
     padding: "8px 14px"
@@ -54,10 +56,10 @@ components:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.foreground}"
     rounded: "{rounded.sm}"
-    padding: "24px"
+    padding: "16px"
   badge-stamp:
     backgroundColor: "transparent"
-    textColor: "{colors.header-foreground}"
+    textColor: "{colors.muted}"
     rounded: "{rounded.sm}"
     padding: "4px 8px"
   textarea:
@@ -69,44 +71,40 @@ components:
 
 ## Overview
 
-DebAIte’s shell is a working app frame in a ballot theme. Carbon blue owns the header. The page ground is cool blue-gray paper. Three outline stamps in the header name the match shape: Opening, Rebuttal, and Closing. They are inactive. They are not buttons, and none of them is the current round.
+DebAIte’s shell is a dark arena. The ground is near-black. For is cyan. Against is coral. The header carries the wordmark, “The arena,” the model-status sentence, and three inactive round stamps: 01 Opening, 02 Rebuttal, 03 Closing. Those stamps are not buttons, and none of them is the current round. The debate screen marks the round being read with the word Current.
 
-The scene is a desk under ordinary room light, so the theme is light. There is one theme and no toggle.
+The scene is a screen in a dark room, so the theme is dark. There is one theme and no toggle.
 
 ## Colors
 
-The header blue `#173556` is the committed color. Header text is `#f4f7fb`.
+Page ground `#0b1014`. Panels `#141b22`. Raised panels `#1c2630`. Primary text `#f3f7f8`. Secondary text `#b7c5d0`. Borders `#31404c`.
 
-Page ground `#d5dee8`. Panels `#eef3f8`. Raised panels `#f7f9fb`. Primary text `#1a2330`. Secondary text `#3e4d61`. Borders `#b3c0cf`.
+For `#3ee0d0` is the affirmative side and the primary action. Against `#e88972` is the negative side. Side color tints the panel border and that side’s portrait. The name, letter, and drawing still identify the character when color is removed.
 
-Pencil red `#9b2c2c` is for errors and a status mark only. Success `#1d6b45` is for positive status only.
-
-Character marks are border and stamp colors, never the only way to read a name: Rex `#8a3d16`, Athena `#1f4f86`, Jester `#7a5b10`. The CSS variables are `--rex`, `--athena`, and `--jester`.
+Danger `#ffb4b4` is for errors. Success `#8ed4ae` is for a ready status mark only.
 
 ## Typography
 
-UI text is Geist. Stamp figures and compact labels are Geist Mono. Body text does not use Arial. Headings use weight and size, not a second display face.
+Fighter names and the “Set the match” heading use Bebas Neue. UI text is Geist. Stamp figures and compact labels are Geist Mono. Body text does not use Arial.
 
 ## Layout
 
-The shell is a header plus one main column. Content has at least 16px of horizontal padding. At 1280px the column is centered and at most 1120px wide. The first focusable control is a skip link to `#main`.
+The shell is a header plus one main column. Content has at least 16px of horizontal padding. At 1280px the column is centered and at most 1120px wide. Setup places For, VS, and Against in one row, and stacks them below that width. The first focusable control is a skip link to `#main`.
 
 ## Elevation & Depth
 
-Depth comes from the paper steps: ground, panel, raised panel. Do not add hard offset shadows.
+Depth comes from the ground, the panel, and the raised panel. Do not add hard offset shadows.
 
 ## Shapes
 
-Corners are 2px. Stamps are outlined rectangles, not filled pills. Borders are 1px.
+Corners are 2px. Stamps are outlined rectangles, not filled pills. Side panels use a 1px border in the side color. Portraits are white line drawings masked to the side color. They live in `public/characters/`.
 
 ## Components
 
-`Button`, `Card`, `Textarea`, `Label`, and `Badge` live in `components/ui/`. Buttons default to `type="button"` and show a visible disabled state. Labels are real `<label>` elements. Focus uses `focus-visible`. When the user prefers reduced motion, transitions are removed or shorter than 0.01ms.
-
-The header stamps use `Badge`. The waiting note uses `Card`. Character colors stay available for later screens.
+`Button`, `Card`, `Textarea`, `Label`, and `Badge` live in `components/ui/`. The primary button is cyan with near-black text. Buttons default to `type="button"` and show a visible disabled state. Labels are real `<label>` elements. Focus uses a cyan `focus-visible` outline. When the user prefers reduced motion, transitions are removed or shorter than 0.01ms.
 
 ## Do's and Don'ts
 
-Do keep one theme. Do keep pencil red off decoration. Do leave the round stamps inactive until a debate exists.
+Do keep one theme. Do keep danger off decoration. Do leave the header round stamps inactive. Do tint a portrait with the side it is playing, not with a separate character hue.
 
 Do not switch colors with `prefers-color-scheme`. Do not add a theme toggle. Do not imply a debate is already running on the shell.

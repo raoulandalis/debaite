@@ -12,7 +12,11 @@ import type { GameSession, PlaybackEvent } from "@/lib/debate";
 import { requestJudge } from "@/lib/debate/judge-client";
 import { requestTurn } from "@/lib/debate/turn-client";
 
-const rounds = ["Opening", "Rebuttal", "Closing"] as const;
+const rounds = [
+  { id: "01", label: "Opening" },
+  { id: "02", label: "Rebuttal" },
+  { id: "03", label: "Closing" },
+] as const;
 
 type CatalogModel = { name: string; parameterBillions: number | null };
 
@@ -137,29 +141,32 @@ export function Game() {
       <a className="skip-link" href="#main">
         Skip to main content
       </a>
-      <header className="bg-header text-header-foreground">
+      <header className="border-b border-border bg-background text-foreground">
         <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-tight">DebAIte</h1>
-          <ul aria-label="Match shape" className="flex flex-wrap gap-2">
-            {rounds.map((round) => (
-              <li key={round}>
-                <Badge
-                  className="rounded-sm border-header-foreground/70 bg-transparent font-mono text-xs tracking-wide text-header-foreground uppercase"
-                  variant="outline"
-                >
-                  {round}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-baseline gap-3">
+            <h1 className="font-display text-4xl tracking-wide">DebAIte</h1>
+            <p className="font-mono text-xs tracking-widest text-muted uppercase">The arena</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <ModelStatus />
+            <ul aria-label="Match shape" className="flex flex-wrap gap-2">
+              {rounds.map((round) => (
+                <li key={round.id}>
+                  <Badge
+                    className="rounded-sm border-border bg-transparent font-mono text-xs tracking-wide text-muted uppercase"
+                    variant="outline"
+                  >
+                    {round.id} {round.label}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-10" id="main">
         {session.phase === "setup" ? (
-          <>
-            <ModelStatus />
-            <SetupForm models={models} session={session} onEvent={dispatch} />
-          </>
+          <SetupForm models={models} session={session} onEvent={dispatch} />
         ) : (
           <DebatePhase session={session} onEvent={dispatch} />
         )}

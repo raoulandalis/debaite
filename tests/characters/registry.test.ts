@@ -5,6 +5,7 @@ const fields = [
   "id",
   "name",
   "title",
+  "tagline",
   "summary",
   "accentToken",
   "monogram",

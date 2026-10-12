@@ -32,6 +32,7 @@ export const CHARACTERS = {
     id: "rex",
     name: "Rex",
     title: "The Provocateur",
+    tagline: "Sharp. Fearless. Direct.",
     summary:
       "Bold, confident, and confrontational. Uses sharp one-liners and forceful arguments.",
     accentToken: "rex",
@@ -42,6 +43,7 @@ export const CHARACTERS = {
     id: "athena",
     name: "Athena",
     title: "The Strategist",
+    tagline: "Calm. Analytical. Methodical.",
     summary:
       "Calm, analytical, and methodical. Uses structured reasoning and carefully chosen examples.",
     accentToken: "athena",
@@ -52,6 +54,7 @@ export const CHARACTERS = {
     id: "jester",
     name: "Jester",
     title: "The Wildcard",
+    tagline: "Witty. Playful. Unpredictable.",
     summary:
       "Witty, playful, and unpredictable. Uses humor, analogies, and unexpected angles.",
     accentToken: "jester",

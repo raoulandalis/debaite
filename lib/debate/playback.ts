@@ -203,25 +203,12 @@ function succeedTurn(state: GameSession, turn: Turn): GameSession {
   if (!appended.ok) {
     return state;
   }
-  const debate = appended.value;
-  if (debate.status === "awaiting_judge") {
-    if (state.playback === "running") {
-      return { ...state, debate, error: null, pending: { kind: "judge" } };
-    }
-    return { ...state, debate, error: null, pending: null };
-  }
-  if (state.playback !== "running") {
-    return { ...state, debate, error: null, pending: null };
-  }
-  const expected = getExpectedTurn(debate);
-  if (expected === null) {
-    return { ...state, debate, error: null, pending: null };
-  }
   return {
     ...state,
-    debate,
+    debate: appended.value,
     error: null,
-    pending: { kind: "turn", round: expected.round, speaker: expected.speaker },
+    pending: null,
+    playback: "paused",
   };
 }
 

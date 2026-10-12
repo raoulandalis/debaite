@@ -53,12 +53,17 @@ function throughFive(): GameSession {
   let state = apply(readySession(), { type: "start" });
   for (let index = 0; index < 5; index += 1) {
     state = apply(state, { type: "turn_succeeded", turn: speech(index) });
+    state = apply(state, { type: "resume" });
   }
   return state;
 }
 
 function awaitingJudge(): GameSession {
   return apply(throughFive(), { type: "turn_succeeded", turn: speech(5) });
+}
+
+function judging(): GameSession {
+  return apply(awaitingJudge(), { type: "judge_started" });
 }
 
 test("a paused sixth speech leaves pending null", () => {
@@ -73,7 +78,7 @@ test("a paused sixth speech leaves pending null", () => {
 
 test("judge_succeeded with the worked example stores 66.50 and phase results", () => {
   const body = toJudgment(output(worked, worked));
-  const next = apply(awaitingJudge(), { type: "judge_succeeded", body });
+  const next = apply(judging(), { type: "judge_succeeded", body });
   expect(next.phase).toBe("results");
   expect(next.judgment?.scores.a.weightedDisplay).toBe("66.50");
   expect(next.judgment?.scores.b.weightedDisplay).toBe("66.50");
@@ -86,7 +91,7 @@ test("judge_succeeded with the worked example stores 66.50 and phase results", (
 test("judge_succeeded with mismatched weightedUnits stays on debate", () => {
   const body = toJudgment(output(worked, worked));
   body.scores.a.weightedUnits = 666;
-  const next = apply(awaitingJudge(), { type: "judge_succeeded", body });
+  const next = apply(judging(), { type: "judge_succeeded", body });
   expect(next.phase).toBe("debate");
   expect(next.judgment).toBeNull();
   expect(next.debate?.turns).toHaveLength(6);
@@ -97,7 +102,7 @@ test("judge_succeeded with mismatched weightedUnits stays on debate", () => {
 });
 
 test("judge_failed keeps six turns and a null judgment", () => {
-  const next = apply(awaitingJudge(), {
+  const next = apply(judging(), {
     type: "judge_failed",
     error: { code: "OLLAMA_TIMEOUT", message: "Ollama took too long to respond." },
   });
@@ -110,15 +115,14 @@ test("judge_failed keeps six turns and a null judgment", () => {
 });
 
 test("a turn_succeeded while judging does not append", () => {
-  const judging = awaitingJudge();
-  const next = apply(judging, { type: "turn_succeeded", turn: speech(0) });
+  const next = apply(judging(), { type: "turn_succeeded", turn: speech(0) });
   expect(next.debate?.turns).toHaveLength(6);
   expect(next.pending).toEqual({ kind: "judge" });
   expect(next.judgment).toBeNull();
 });
 
 test("play again produces an empty in-progress debate and pending opening A", () => {
-  const judged = apply(awaitingJudge(), {
+  const judged = apply(judging(), {
     type: "judge_succeeded",
     body: toJudgment(output(worked, worked)),
   });
@@ -138,7 +142,7 @@ test("play again produces an empty in-progress debate and pending opening A", ()
 });
 
 test("new debate keeps the draft topic, ids, and model choices and clears debate", () => {
-  const judged = apply(awaitingJudge(), {
+  const judged = apply(judging(), {
     type: "judge_succeeded",
     body: toJudgment(output(worked, worked)),
   });

@@ -93,12 +93,21 @@ test("canStart follows the roster and the installed judge", () => {
   expect(canStart(base)).toBe(true);
 });
 
-test("turn_succeeded appends and advances to opening B while running", () => {
+test("turn_succeeded appends and waits instead of starting the next speech", () => {
   const started = apply(readySession(), { type: "start" });
   const next = apply(started, { type: "turn_succeeded", turn: speech(0) });
   expect(next.debate?.turns).toEqual([speech(0)]);
-  expect(next.pending).toEqual({ kind: "turn", round: "opening", speaker: "b" });
+  expect(next.pending).toBeNull();
+  expect(next.playback).toBe("paused");
   expect(next.error).toBeNull();
+});
+
+test("resume after a speech requests the next turn", () => {
+  const started = apply(readySession(), { type: "start" });
+  const held = apply(started, { type: "turn_succeeded", turn: speech(0) });
+  const next = apply(held, { type: "resume" });
+  expect(next.playback).toBe("running");
+  expect(next.pending).toEqual({ kind: "turn", round: "opening", speaker: "b" });
 });
 
 test("turn_succeeded while paused appends and leaves pending null", () => {
@@ -129,14 +138,18 @@ test("turn_failed does not add a turn", () => {
   expect(next.error?.code).toBe("OLLAMA_TIMEOUT");
 });
 
-test("six successes while running set the judge pending and stay on debate", () => {
+test("six successes leave the debate paused for the judge", () => {
   let state = apply(readySession(), { type: "start" });
   for (let index = 0; index < 6; index += 1) {
+    if (index > 0) {
+      state = apply(state, { type: "resume" });
+    }
     state = apply(state, { type: "turn_succeeded", turn: speech(index) });
   }
   expect(state.debate?.status).toBe("awaiting_judge");
   expect(state.debate?.turns).toHaveLength(6);
-  expect(state.pending).toEqual({ kind: "judge" });
+  expect(state.pending).toBeNull();
+  expect(state.playback).toBe("paused");
   expect(state.phase).toBe("debate");
   expect(state.judgment).toBeNull();
 });

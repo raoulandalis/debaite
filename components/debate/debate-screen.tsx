@@ -31,10 +31,10 @@ export function DebateScreen({
 
   return (
     <section className="mt-6 flex min-w-0 flex-col gap-4">
-      <ol aria-label="Rounds" className="flex flex-wrap gap-3">
-        {rounds.map((round) => (
+      <ol aria-label="Rounds" className="flex flex-wrap gap-3 font-mono text-xs tracking-widest uppercase">
+        {rounds.map((round, index) => (
           <li key={round.id}>
-            <span>{round.label}</span>
+            <span className="text-muted">0{index + 1}</span> <span>{round.label}</span>
             {active?.round === round.id && !awaitingJudge ? <span>Current</span> : null}
           </li>
         ))}
@@ -58,13 +58,17 @@ export function DebateScreen({
       </div>
       <div className="flex flex-wrap gap-2">
         {session.playback === "running" && !awaitingJudge ? (
-          <Button type="button" onClick={() => onEvent({ type: "pause" })}>
+          <Button type="button" variant="outline" onClick={() => onEvent({ type: "pause" })}>
             Pause
           </Button>
         ) : null}
-        {session.playback === "paused" && !awaitingJudge && getExpectedTurn(debate) !== null ? (
+        {session.playback === "paused" &&
+        session.pending === null &&
+        session.error === null &&
+        !awaitingJudge &&
+        getExpectedTurn(debate) !== null ? (
           <Button type="button" onClick={() => onEvent({ type: "resume" })}>
-            Resume
+            Next argument
           </Button>
         ) : null}
         {awaitingJudge && session.pending === null && session.error === null ? (
@@ -110,7 +114,12 @@ function StatusLine({ session, debate }: { session: GameSession; debate: DebateS
         </div>
       );
     }
-    return <p>The debate is ready for the judge.</p>;
+    return (
+      <div>
+        <p aria-live="polite">{readyLine(debate)}</p>
+        <p>The debate is ready for the judge.</p>
+      </div>
+    );
   }
   if (session.pending?.kind === "turn") {
     const name = speakerName(debate, session.pending.speaker);
@@ -129,6 +138,9 @@ function StatusLine({ session, debate }: { session: GameSession; debate: DebateS
     );
   }
   if (session.playback === "paused") {
+    if (debate.turns.length > 0) {
+      return <p aria-live="polite">{readyLine(debate)}</p>;
+    }
     return <p>Paused.</p>;
   }
   return null;
@@ -153,9 +165,8 @@ function SpeakerColumn({
       {turns.map((turn) => (
         <SpeechCard
           key={`${turn.round}-${turn.speaker}`}
-          accent={character.accentToken}
+          characterId={character.id}
           model={speaker === "a" ? debate.debaterAModel : debate.debaterBModel}
-          monogram={character.monogram}
           name={character.name}
           round={turn.round}
           side={speaker === "a" ? "For" : "Against"}
@@ -173,7 +184,24 @@ function activeTurn(
   if (session.pending?.kind === "turn") {
     return session.pending;
   }
+  const latest = debate.turns.at(-1);
+  if (
+    session.playback === "paused" &&
+    session.error === null &&
+    latest !== undefined &&
+    debate.status !== "awaiting_judge"
+  ) {
+    return { round: latest.round, speaker: latest.speaker };
+  }
   return getExpectedTurn(debate);
+}
+
+function readyLine(debate: DebateState): string {
+  const latest = debate.turns.at(-1);
+  if (latest === undefined) {
+    return "";
+  }
+  return `${speakerName(debate, latest.speaker)}'s ${latest.round} argument is ready.`;
 }
 
 function speakerName(debate: DebateState, speaker: SpeakerSlot): string {

@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Portrait } from "@/components/characters/portrait";
 import { SpeechCard } from "@/components/debate/speech-card";
 import { Button } from "@/components/ui/button";
 import type { Character } from "@/lib/characters";
 import type { PlaybackEvent, Turn } from "@/lib/debate";
 import type { Judgment } from "@/lib/judge";
-
-const borders = {
-  rex: "border-rex",
-  athena: "border-athena",
-  jester: "border-jester",
-} as const;
 
 const criteria = [
   { label: "Reasoning and logical consistency", weight: "35%", key: "reasoning" },
@@ -53,7 +48,11 @@ export function ResultsScreen({
 
   return (
     <section className="mt-6 flex min-w-0 flex-col gap-6">
-      <h2 ref={outcomeRef} className="text-3xl font-semibold tracking-tight" tabIndex={-1}>
+      <h2
+        ref={outcomeRef}
+        className="font-display text-5xl tracking-wide uppercase"
+        tabIndex={-1}
+      >
         {outcome}
       </h2>
       <p>{judgment.disclaimer}</p>
@@ -125,9 +124,8 @@ export function ResultsScreen({
           return (
             <SpeechCard
               key={`${turn.round}-${turn.speaker}`}
-              accent={character.accentToken}
+              characterId={character.id}
               model={turn.speaker === "a" ? debaterAModel : debaterBModel}
-              monogram={character.monogram}
               name={character.name}
               round={turn.round}
               side={turn.speaker === "a" ? "For" : "Against"}
@@ -159,24 +157,18 @@ function SideSummary({
   side: "For" | "Against";
   weightedDisplay: string;
 }) {
+  const tone = side === "For" ? "border-for text-for" : "border-against text-against";
   return (
-    <article
-      className={`min-w-0 rounded-sm border-2 bg-surface-raised p-4 ${borders[character.accentToken]}`}
-    >
+    <article className={`min-w-0 border-2 bg-surface-raised p-4 ${tone}`}>
       <div className="flex items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-current text-sm font-medium"
-        >
-          {character.monogram}
-        </span>
-        <div className="min-w-0">
-          <h3 className="font-medium">{character.name}</h3>
+        <Portrait className="size-16 shrink-0" id={character.id} />
+        <div className="min-w-0 text-foreground">
+          <h3 className="font-display text-3xl tracking-wide uppercase">{character.name}</h3>
           <p>{model}</p>
           <p>{side}</p>
         </div>
       </div>
-      <p className="mt-3">
+      <p className="mt-3 text-foreground">
         Weighted score <span>{weightedDisplay}</span>
       </p>
     </article>
