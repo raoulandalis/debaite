@@ -64,7 +64,20 @@ export function DebateScreen({
         })}
       </ol>
       <div className="flex min-w-0 flex-col gap-6">
-        <Thread debate={debate} debaterA={debaterA} debaterB={debaterB} />
+        <Thread
+          debate={debate}
+          debaterA={debaterA}
+          debaterB={debaterB}
+          draft={
+            session.pending?.kind === "turn" && session.turnDraft
+              ? {
+                  round: session.pending.round,
+                  speaker: session.pending.speaker,
+                  text: session.turnDraft,
+                }
+              : null
+          }
+        />
       </div>
       <div className="flex flex-col items-center gap-3 text-center">
         <StatusLine session={session} debate={debate} />
@@ -178,10 +191,12 @@ function Thread({
   debate,
   debaterA,
   debaterB,
+  draft,
 }: {
   debate: DebateState;
   debaterA: Character;
   debaterB: Character;
+  draft: { round: RoundId; speaker: SpeakerSlot; text: string } | null;
 }) {
   return (
     <>
@@ -209,6 +224,24 @@ function Thread({
           </div>
         );
       })}
+      {draft !== null && draft.text !== "" ? (
+        <div className="flex flex-col gap-6">
+          {debate.turns.at(-1)?.round === draft.round ? null : (
+            <RoundDivider
+              index={rounds.findIndex((round) => round.id === draft.round)}
+              label={roundLabel(draft.round)}
+            />
+          )}
+          <SpeechCard
+            characterId={(draft.speaker === "a" ? debaterA : debaterB).id}
+            model={draft.speaker === "a" ? debate.debaterAModel : debate.debaterBModel}
+            name={(draft.speaker === "a" ? debaterA : debaterB).name}
+            round={draft.round}
+            side={draft.speaker === "a" ? "For" : "Against"}
+            text={draft.text}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

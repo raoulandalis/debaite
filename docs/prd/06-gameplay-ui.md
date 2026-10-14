@@ -25,7 +25,7 @@ Let a player pick a topic, two characters, and two models from the fixed debater
 ### Excluded
 
 - Calling `/api/debate/judge`, rendering scores, or moving to a results phase. PRD 07 does that.
-- Accounts, history, and streaming.
+- Accounts and history. Judge output stays off this screen; speeches stream in place.
 - A character editor.
 - New pages. Setup and debate are phases on `app/page.tsx`.
 
@@ -40,7 +40,7 @@ Let a player pick a topic, two characters, and two models from the fixed debater
 - U-6. A failed health check leaves every roster tag disabled, so Start stays disabled. The warning from PRD 02 stays visible. Do not offer a way to type a model name.
 - U-7. Starting calls `createDebate`, sets the phase to `debate`, sets playback to `running`, and requests opening A. It does not navigate to another URL.
 - U-8. Add `POST /api/debate/turn`. The body is `TurnRequest` from PRD 00. Validate it with Zod, then `restoreDebate`. If restore fails, return `400` or `409` using the engine's code. If the requested `round` and `speaker` are not `getExpectedTurn`, return `409 DEBATE_STATE_CONFLICT` and do not call Ollama.
-- U-9. The turn route loads the speaker with `getCharacter`, sets side to affirmative for `a` and negative for `b`, builds messages with `buildTurnMessages`, and calls `generate` with that speaker's model, temperature `0.8`, and `numPredict` 320 for opening and rebuttal or 240 for closing. Before `generate`, apply the model rules in PRD 00. A model outside the debater roster, a judge other than `gemma2:9b`, or a size-band failure is `400 INVALID_INPUT`. A roster model missing from the catalog is `502 OLLAMA_UNAVAILABLE`. Do not put the model name in the prompt. Also apply that allowlist in `POST /api/debate/judge` and point its tests at `mistral:7b`, `llama3.1:8b`, and `gemma2:9b`.
+- U-9. The turn route loads the speaker with `getCharacter`, sets side to affirmative for `a` and negative for `b`, builds messages with `buildTurnMessages`, and calls `generateStream` with that speaker's model, temperature `0.8`, and `numPredict` 320 for opening and rebuttal or 240 for closing. It streams each text delta to the debate screen, then commits the trimmed speech only when it is 1 to 4000 characters. Before `generateStream`, apply the model rules in PRD 00. A model outside the debater roster, a judge other than `gemma2:9b`, or a size-band failure is `400 INVALID_INPUT`. A roster model missing from the catalog is `502 OLLAMA_UNAVAILABLE`. Do not put the model name in the prompt. Also apply that allowlist in `POST /api/debate/judge` and point its tests at `mistral:7b`, `llama3.1:8b`, and `gemma2:9b`. The judge route stays non-streaming.
 - U-10. The route trims model text and rejects empty text or text longer than 4,000 characters with `INVALID_MODEL_OUTPUT`. Success returns `{ round, speaker, text }` using the requested round and speaker, and the trimmed text. The server does not store the turn.
 - U-11. The debate screen shows the three rounds as text: `Opening`, `Rebuttal`, and `Closing`. The active round also has the word `Current`. Completed rounds stay visible.
 - U-12. Every stored speech shows the character name, that speaker's model name, `For` or `Against`, the round name, and the speech text. Color may accent the card. The name, model, and side are still present if color is removed.

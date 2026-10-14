@@ -4,7 +4,7 @@ import { buildTurnMessages, getCharacter, statementsForSpeaker } from "@/lib/cha
 import { getExpectedTurn, restoreDebate, validateRoster } from "@/lib/debate";
 import { validateModelChoice } from "@/lib/debate/roster";
 import type { DebateState, SpeakerSlot } from "@/lib/debate";
-import { generate, listInstalledModels } from "@/lib/ollama/client";
+import { generateStream, listInstalledModels } from "@/lib/ollama/client";
 
 const HTTP_STATUS = {
   INVALID_INPUT: 400,
@@ -87,28 +87,92 @@ export async function POST(request: Request) {
   }
 
   const statements = statementsForSpeaker(restored.value.turns, speaker);
-  const generated = await generate({
-    messages: buildTurnMessages(character, {
-      topic: restored.value.topic,
-      side: speaker === "a" ? "affirmative" : "negative",
-      round: parsed.data.round,
-      ownStatements: statements.ownStatements,
-      opponentStatements: statements.opponentStatements,
-    }),
-    model: speaker === "a" ? restored.value.debaterAModel : restored.value.debaterBModel,
-    temperature: 0.8,
-    numPredict: parsed.data.round === "closing" ? 240 : 320,
+  const round = parsed.data.round;
+  const encoder = new TextEncoder();
+  let closed = false;
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: unknown) => {
+        if (closed) {
+          return;
+        }
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+      let finished = false;
+      try {
+        for await (const event of generateStream({
+          messages: buildTurnMessages(character, {
+            topic: restored.value.topic,
+            side: speaker === "a" ? "affirmative" : "negative",
+            round,
+            ownStatements: statements.ownStatements,
+            opponentStatements: statements.opponentStatements,
+          }),
+          model: speaker === "a" ? restored.value.debaterAModel : restored.value.debaterBModel,
+          temperature: 0.8,
+          numPredict: round === "closing" ? 240 : 320,
+        })) {
+          if (event.type === "error") {
+            send({
+              type: "error",
+              error:
+                event.code === "INVALID_MODEL_OUTPUT"
+                  ? { code: event.code, message: "The speech was empty or too long." }
+                  : { code: event.code, message: event.message },
+            });
+            finished = true;
+            return;
+          }
+          if (event.type === "delta") {
+            send({ type: "delta", text: event.text });
+            continue;
+          }
+          const text = event.text.trim();
+          if (text.length < 1 || text.length > 4000) {
+            send({
+              type: "error",
+              error: {
+                code: "INVALID_MODEL_OUTPUT",
+                message: "The speech was empty or too long.",
+              },
+            });
+            finished = true;
+            return;
+          }
+          send({ type: "speech", round, speaker, text });
+          finished = true;
+        }
+        if (!finished) {
+          send({
+            type: "error",
+            error: {
+              code: "INVALID_MODEL_OUTPUT",
+              message: "The speech was empty or too long.",
+            },
+          });
+        }
+      } catch {
+        console.error({ code: "MODEL_ERROR" });
+        send({
+          type: "error",
+          error: {
+            code: "MODEL_ERROR",
+            message: "Ollama returned an unexpected response.",
+          },
+        });
+      } finally {
+        closed = true;
+        controller.close();
+      }
+    },
   });
-  if (!generated.ok) {
-    return errorResponse(generated.code, generated.message);
-  }
 
-  const text = generated.text.trim();
-  if (text.length < 1 || text.length > 4000) {
-    return errorResponse("INVALID_MODEL_OUTPUT", "The speech was empty or too long.");
-  }
-
-  return Response.json({ round: parsed.data.round, speaker, text });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache",
+    },
+  });
 }
 
 function speakerId(debate: DebateState, speaker: SpeakerSlot): string {

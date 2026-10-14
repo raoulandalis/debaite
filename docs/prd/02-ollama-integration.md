@@ -26,7 +26,7 @@ The first implementation of this PRD checked a single `OLLAMA_MODEL`. The contra
 ### Excluded
 
 - Character prompts, debate turns, judge scoring, and `/api/debate/*`.
-- Streaming.
+- Streaming the judge. `generate` stays non-streaming. `generateStream` is for debate turns.
 - The setup controls that assign a debater model. PRD 06 owns those controls and shows only the roster in PRD 00. This PRD still lists every installed model so setup can tell which roster tags are present.
 - Downloading or pulling a model from this app. The player pulls models in Ollama.
 - Hosted model APIs.
@@ -45,7 +45,7 @@ The first implementation of this PRD checked a single `OLLAMA_MODEL`. The contra
 
 - O-3. `.env.example` lists those three variables, with comments that the app does not install models and that `OLLAMA_MODEL` is only a sample for the live test. It must not contain secrets.
 - O-4. Change `.gitignore` so `.env*` stays ignored and `!.env.example` is committed. Do not commit a real `.env`.
-- O-5. `generate` sends `POST {baseUrl}/api/chat` with `stream: false`, a `model`, a `messages` array, `options.temperature`, and `options.num_predict`. An optional `json: true` argument sets Ollama's `format` to `"json"`.
+- O-5. `generate` sends `POST {baseUrl}/api/chat` with `stream: false`, a `model`, a `messages` array, `options.temperature`, and `options.num_predict`. An optional `json: true` argument sets Ollama's `format` to `"json"`. `generateStream` sends that same body with `stream: true` and yields each `message.content` delta. Debate turns use `generateStream`. The judge keeps `generate`.
 - O-6. `messages` entries are `{ role: "system" | "user", content: string }` only. The gateway does not accept tool calls or assistant-authored control messages from the browser.
 - O-7. The gateway aborts the fetch with `AbortSignal.timeout` or an equivalent `AbortController` at `OLLAMA_TIMEOUT_MS`. A timeout becomes `OLLAMA_TIMEOUT`.
 - O-8. Connection refusal, DNS failure, or a network error becomes `OLLAMA_UNAVAILABLE`.

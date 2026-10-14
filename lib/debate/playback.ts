@@ -18,6 +18,7 @@ export type GameSession = {
   judgeModel: string | null;
   debate: DebateState | null;
   judgment: Judgment | null;
+  turnDraft: string | null;
   playback: "running" | "paused";
   pending: null | { kind: "turn"; round: RoundId; speaker: SpeakerSlot } | { kind: "judge" };
   error: null | { code: string; message: string };
@@ -34,6 +35,7 @@ export type SetupPatch = {
 export type PlaybackEvent =
   | { type: "edit_setup"; patch: SetupPatch }
   | { type: "start" }
+  | { type: "turn_progress"; text: string }
   | { type: "turn_succeeded"; turn: Turn }
   | { type: "turn_failed"; error: { code: string; message: string } }
   | { type: "pause" }
@@ -60,6 +62,7 @@ export function initialSession(): GameSession {
     judgeModel: null,
     debate: null,
     judgment: null,
+    turnDraft: null,
     playback: "paused",
     pending: null,
     error: null,
@@ -108,19 +111,22 @@ export function playbackReducer(state: GameSession, event: PlaybackEvent): GameS
       return editSetup(state, event.patch);
     case "start":
       return startDebate(state);
+    case "turn_progress":
+      return progressTurn(state, event.text);
     case "turn_succeeded":
       return succeedTurn(state, event.turn);
     case "turn_failed":
       return {
         ...state,
         pending: null,
+        turnDraft: null,
         playback: "paused",
         error: event.error,
       };
     case "pause":
       return { ...state, playback: "paused" };
     case "cancel":
-      return { ...state, pending: null, playback: "paused" };
+      return { ...state, pending: null, turnDraft: null, playback: "paused" };
     case "resume":
     case "retry":
       return requestExpected(state);
@@ -187,10 +193,18 @@ function startDebate(state: GameSession): GameSession {
     judgeModel: JUDGE_MODEL,
     debate: created.value,
     judgment: null,
+    turnDraft: null,
     playback: "running",
     pending: { kind: "turn", round: "opening", speaker: "a" },
     error: null,
   };
+}
+
+function progressTurn(state: GameSession, text: string): GameSession {
+  if (state.pending?.kind !== "turn") {
+    return state;
+  }
+  return { ...state, turnDraft: text };
 }
 
 function succeedTurn(state: GameSession, turn: Turn): GameSession {
@@ -211,6 +225,7 @@ function succeedTurn(state: GameSession, turn: Turn): GameSession {
     debate: appended.value,
     error: null,
     pending: null,
+    turnDraft: null,
     playback: "paused",
   };
 }
@@ -227,6 +242,7 @@ function requestExpected(state: GameSession): GameSession {
     ...state,
     playback: "running",
     error: null,
+    turnDraft: null,
     pending: { kind: "turn", round: expected.round, speaker: expected.speaker },
   };
 }

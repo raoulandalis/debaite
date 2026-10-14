@@ -103,6 +103,32 @@ test("canStart follows the roster and the installed judge", () => {
   expect(canStart(base)).toBe(true);
 });
 
+test("turn_progress stores the draft only while that speech is pending", () => {
+  const started = apply(readySession(), { type: "start" });
+  const next = apply(started, { type: "turn_progress", text: "Schools need" });
+  expect(next.turnDraft).toBe("Schools need");
+  expect(next.debate?.turns).toEqual([]);
+  expect(next.pending).toEqual({ kind: "turn", round: "opening", speaker: "a" });
+  const finished = apply(next, { type: "turn_succeeded", turn: speech(0) });
+  expect(finished.turnDraft).toBeNull();
+  expect(finished.debate?.turns).toEqual([speech(0)]);
+});
+
+test("turn_progress before a turn is pending is ignored", () => {
+  const next = apply(readySession(), { type: "turn_progress", text: "Too early." });
+  expect(next.turnDraft).toBeNull();
+  expect(next.phase).toBe("setup");
+});
+
+test("cancel clears a partial speech", () => {
+  const started = apply(readySession(), { type: "start" });
+  const drafting = apply(started, { type: "turn_progress", text: "Schools" });
+  const next = apply(drafting, { type: "cancel" });
+  expect(next.turnDraft).toBeNull();
+  expect(next.pending).toBeNull();
+  expect(next.debate?.turns).toEqual([]);
+});
+
 test("turn_succeeded appends and waits instead of starting the next speech", () => {
   const started = apply(readySession(), { type: "start" });
   const next = apply(started, { type: "turn_succeeded", turn: speech(0) });

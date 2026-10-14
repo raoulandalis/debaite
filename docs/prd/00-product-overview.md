@@ -28,7 +28,7 @@ This PRD is the shared context for PRDs 01–08. It fixes the product scope, the
 - User accounts, authentication, payments, or a database.
 - Saved debate history or sharing a debate by URL.
 - A character-creation editor.
-- Streaming tokens to the browser.
+- Streaming the judge's verdict. Debate speeches stream onto the debate screen; the results screen still appears when judging is finished.
 - Hosted model APIs, and more than one Ollama server. The player does not pick from every model installed in Ollama. Speaker choices are the debater roster, and the judge tag is fixed.
 - Hosting the Next.js app on Vercel, or any setup that assumes a home Ollama server is publicly reachable.
 - Claiming the judge is unbiased, objective, or an authority outside the game.
@@ -116,7 +116,7 @@ Browser session
   <- JSON speech or judgment, or { error: { code, message } }
 ```
 
-Ollama chat requests use `stream: false`. The judge request also sets `format: "json"`.
+Debate-turn Ollama chat requests use `stream: true`. The judge request uses `stream: false` and `format: "json"`.
 
 ### Session and transcript shapes
 
@@ -378,7 +378,7 @@ Deploying the frontend to a public host does not expose Ollama running on a home
 
 - Client-owned state keeps the server stateless and avoids a session store that would be wrong on a future multi-instance host.
 - The player picks two of the three debater tags. Personalities are prompts applied to those models. The roster is already inside the size band, and the server still checks that band. The judge is the fixed `gemma2:9b` tag, which is a different model and may be larger.
-- Non-streaming responses are easier to validate. Local models can be slow; the UI must show an active generating state instead of a silent spinner with no status text.
+- Debate speeches stream onto the debate screen as they are written, and are stored only after the full speech is valid. The judge stays non-streaming, and the results screen appears when judging finishes. Local models can be slow; the UI must show an active generating state instead of a silent spinner with no status text.
 - Automatic advance matches "watch the debate." Pause stops the next request only. Cancel aborts the current request and does not append a speech.
 - The judge sees `Debater A` and `Debater B` only. Names and personality text stay out of that prompt so the score is about the arguments.
 - Integer `weightedUnits` avoid float comparisons when deciding a tie.

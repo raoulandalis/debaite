@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { checkHealth, generate, listInstalledModels } from "@/lib/ollama/client";
+import { checkHealth, generate, generateStream, listInstalledModels } from "@/lib/ollama/client";
 import { healthFromTags, matchModel, parseInstalledModels } from "@/lib/ollama/health";
 
 const envKeys = ["OLLAMA_BASE_URL", "OLLAMA_MODEL", "OLLAMA_TIMEOUT_MS"] as const;
@@ -104,6 +104,58 @@ test("sends json format and an explicit model when asked", async () => {
   const body = JSON.parse(String(fetchCall()[1].body));
   expect(body.format).toBe("json");
   expect(body.model).toBe("other");
+});
+
+test("generateStream concatenates content deltas and finishes on done", async () => {
+  mockNdjsonChunks([
+    '{"message":{"content":"hel"},"done":false}\n{"message":{"con',
+    'tent":"lo"},"done":false}\n{"message":{"content":""},"done":true}\n',
+  ]);
+  const events = [];
+  for await (const event of generateStream({
+    messages: [{ role: "user", content: "Hi" }],
+    temperature: 0.8,
+    numPredict: 32,
+  })) {
+    events.push(event);
+  }
+  expect(events).toEqual([
+    { type: "delta", text: "hel" },
+    { type: "delta", text: "lo" },
+    { type: "done", text: "hello" },
+  ]);
+  const body = JSON.parse(String(fetchCall()[1].body));
+  expect(body.stream).toBe(true);
+  expect(body.format).toBeUndefined();
+});
+
+test("generateStream maps a timeout, a missing model, and an unreadable line", async () => {
+  vi.mocked(fetch).mockRejectedValue(new DOMException("timed out", "TimeoutError"));
+  await expect(collectStream()).resolves.toEqual([
+    {
+      type: "error",
+      code: "OLLAMA_TIMEOUT",
+      message: "Ollama took too long to respond.",
+    },
+  ]);
+
+  vi.mocked(fetch).mockResolvedValue(new Response("missing", { status: 404 }));
+  await expect(collectStream()).resolves.toEqual([
+    {
+      type: "error",
+      code: "OLLAMA_UNAVAILABLE",
+      message: "The configured model is missing.",
+    },
+  ]);
+
+  mockNdjsonChunks(['{"message":{"content":"nope"}\n']);
+  await expect(collectStream()).resolves.toEqual([
+    {
+      type: "error",
+      code: "MODEL_ERROR",
+      message: "Ollama returned an unexpected response.",
+    },
+  ]);
 });
 
 test("rejects empty and missing chat content", async () => {
@@ -264,6 +316,31 @@ test("checkHealth stays down when tags cannot be fetched", async () => {
 
 function mockJson(body: unknown) {
   vi.mocked(fetch).mockResolvedValue(Response.json(body));
+}
+
+function mockNdjsonChunks(chunks: string[]) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+  vi.mocked(fetch).mockResolvedValue(new Response(stream));
+}
+
+async function collectStream() {
+  const events = [];
+  for await (const event of generateStream({
+    messages: [{ role: "user", content: "Hi" }],
+    temperature: 0.8,
+    numPredict: 8,
+  })) {
+    events.push(event);
+  }
+  return events;
 }
 
 function fetchCall(): [string, RequestInit] {

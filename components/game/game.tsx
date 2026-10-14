@@ -55,6 +55,7 @@ export function Game() {
     let ignore = false;
 
     void (async () => {
+      let shown = "";
       const result = await requestTurn(
         {
           topic: debate.topic,
@@ -68,6 +69,13 @@ export function Game() {
           transcript: debate.turns,
         },
         controller.signal,
+        (delta) => {
+          if (ignore) {
+            return;
+          }
+          shown += delta;
+          dispatch({ type: "turn_progress", text: shown });
+        },
       );
       if (ignore || !result.ok && "aborted" in result) {
         return;

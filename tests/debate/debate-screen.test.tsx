@@ -88,6 +88,16 @@ test("pending opening B announces Athena", () => {
   expect(screen.queryByRole("button", { name: "Next argument" })).not.toBeInTheDocument();
 });
 
+test("a partial argument appears before the speech is finished", () => {
+  let session = started();
+  session = playbackReducer(session, { type: "turn_progress", text: "Schools need" });
+  render(<DebateScreen session={session} onEvent={vi.fn()} />);
+
+  expect(screen.getByText("Schools need")).toBeInTheDocument();
+  expect(screen.getByText("Rex is making the opening argument.")).toBeInTheDocument();
+  expect(screen.queryByText("Weighted score")).not.toBeInTheDocument();
+});
+
 test("an error offers retry and does not show a score or winner", () => {
   const session = playbackReducer(started(), {
     type: "turn_failed",
